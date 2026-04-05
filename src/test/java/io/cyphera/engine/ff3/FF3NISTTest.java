@@ -1,0 +1,29 @@
+package io.cyphera.engine.ff3;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class FF3NISTTest {
+
+    static byte[] hex(String h) { return FF3.hexToBytes(h); }
+
+    // NIST SP 800-38G FF3 Test Vectors (all 15)
+
+    @Test void s01() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A94"), hex("D8E7920AFA330A73")); assertEquals("750918814058654607", c.encrypt("890121234567890000")); assertEquals("890121234567890000", c.decrypt("750918814058654607")); }
+    @Test void s02() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A94"), hex("9A768A92F60E12D8")); assertEquals("018989839189395384", c.encrypt("890121234567890000")); assertEquals("890121234567890000", c.decrypt("018989839189395384")); }
+    @Test void s03() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A94"), hex("D8E7920AFA330A73")); assertEquals("48598367162252569629397416226", c.encrypt("89012123456789000000789000000")); assertEquals("89012123456789000000789000000", c.decrypt("48598367162252569629397416226")); }
+    @Test void s04() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A94"), hex("0000000000000000")); assertEquals("34695224821734535122613701434", c.encrypt("89012123456789000000789000000")); assertEquals("89012123456789000000789000000", c.decrypt("34695224821734535122613701434")); }
+    @Test void s05() throws Exception { FF3 c = new FF3(hex("EF4359D8D580AA4F7F036D6F04FC6A94"), hex("9A768A92F60E12D8"), "0123456789abcdefghijklmnop"); assertEquals("g2pk40i992fn20cjakb", c.encrypt("0123456789abcdefghi")); assertEquals("0123456789abcdefghi", c.decrypt("g2pk40i992fn20cjakb")); }
+
+    @Test void s06() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6"), hex("D8E7920AFA330A73")); assertEquals("646965393875028755", c.encrypt("890121234567890000")); assertEquals("890121234567890000", c.decrypt("646965393875028755")); }
+    @Test void s07() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6"), hex("9A768A92F60E12D8")); assertEquals("961610514491424446", c.encrypt("890121234567890000")); assertEquals("890121234567890000", c.decrypt("961610514491424446")); }
+    @Test void s08() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6"), hex("D8E7920AFA330A73")); assertEquals("53048884065350204541786380807", c.encrypt("89012123456789000000789000000")); assertEquals("89012123456789000000789000000", c.decrypt("53048884065350204541786380807")); }
+    @Test void s09() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6"), hex("0000000000000000")); assertEquals("98083802678820389295041483512", c.encrypt("89012123456789000000789000000")); assertEquals("89012123456789000000789000000", c.decrypt("98083802678820389295041483512")); }
+    @Test void s10() throws Exception { FF3 c = new FF3(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6"), hex("9A768A92F60E12D8"), "0123456789abcdefghijklmnop"); assertEquals("i0ihe2jfj7a9opf9p88", c.encrypt("0123456789abcdefghi")); assertEquals("0123456789abcdefghi", c.decrypt("i0ihe2jfj7a9opf9p88")); }
+
+    @Test void s11() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6ABF7158809CF4F3C"), hex("D8E7920AFA330A73")); assertEquals("922011205562777495", c.encrypt("890121234567890000")); assertEquals("890121234567890000", c.decrypt("922011205562777495")); }
+    @Test void s12() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6ABF7158809CF4F3C"), hex("9A768A92F60E12D8")); assertEquals("504149865578056140", c.encrypt("890121234567890000")); assertEquals("890121234567890000", c.decrypt("504149865578056140")); }
+    @Test void s13() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6ABF7158809CF4F3C"), hex("D8E7920AFA330A73")); assertEquals("04344343235792599165734622699", c.encrypt("89012123456789000000789000000")); assertEquals("89012123456789000000789000000", c.decrypt("04344343235792599165734622699")); }
+    @Test void s14() throws Exception { FF3 c = FF3.digits(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6ABF7158809CF4F3C"), hex("0000000000000000")); assertEquals("30859239999374053872365555822", c.encrypt("89012123456789000000789000000")); assertEquals("89012123456789000000789000000", c.decrypt("30859239999374053872365555822")); }
+    @Test void s15() throws Exception { FF3 c = new FF3(hex("EF4359D8D580AA4F7F036D6F04FC6A942B7E151628AED2A6ABF7158809CF4F3C"), hex("9A768A92F60E12D8"), "0123456789abcdefghijklmnop"); assertEquals("p0b2godfja9bhb7bk38", c.encrypt("0123456789abcdefghi")); assertEquals("0123456789abcdefghi", c.decrypt("p0b2godfja9bhb7bk38")); }
+}
