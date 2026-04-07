@@ -46,9 +46,11 @@ jobs:
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
 
       - name: Publish
         run: mvn -B deploy -DskipTests
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
