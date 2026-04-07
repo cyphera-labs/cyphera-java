@@ -9,16 +9,6 @@ public final class Alphabets {
     public static final String ALPHA = ALPHA_LOWER + ALPHA_UPPER;
     public static final String ALPHANUMERIC = DIGITS + ALPHA_LOWER + ALPHA_UPPER;
 
-    /**
-     * Safe printable alphabet — alphanumeric plus symbols that don't break
-     * SQL, JSON, CSV, XML, URLs, or shell escaping. No spaces, quotes,
-     * backslashes, angle brackets, ampersands, pipes, or semicolons.
-     *
-     * Radix 72 — larger keyspace than alphanumeric (62) while staying safe
-     * in every common data format.
-     */
-    public static final String PRINTABLE_SAFE = ALPHANUMERIC + "!#$%*+-.:=?@^_~";
-
     public static final String DEFAULT = ALPHANUMERIC;
 
     public static String resolve(String name) {
@@ -29,7 +19,6 @@ public final class Alphabets {
             case "alpha_upper": return ALPHA_UPPER;
             case "alpha": return ALPHA;
             case "alphanumeric": return ALPHANUMERIC;
-            case "printable_safe": case "printable": return PRINTABLE_SAFE;
             default: return name; // treat as literal custom alphabet
         }
     }
