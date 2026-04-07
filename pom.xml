@@ -6,7 +6,7 @@
 
     <groupId>io.cyphera</groupId>
     <artifactId>cyphera</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.0-alpha.1</version>
     <packaging>jar</packaging>
 
     <name>Cyphera</name>
