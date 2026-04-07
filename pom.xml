@@ -10,15 +10,31 @@
     <packaging>jar</packaging>
 
     <name>Cyphera</name>
-    <description>Data obfuscation SDK — FPE, AES, masking, hashing</description>
-    <url>https://github.com/cyphera-labs/cyphera-java</url>
+    <description>Data protection SDK — format-preserving encryption (FF1/FF3), AES-GCM, data masking, and hashing. Zero runtime dependencies.</description>
+    <url>https://cyphera.io</url>
 
     <licenses>
         <license>
             <name>Apache-2.0</name>
             <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <developers>
+        <developer>
+            <name>Leslie Gutschow</name>
+            <email>leslie.gutschow@horizondigital.dev</email>
+            <organization>Horizon Digital Engineering LLC</organization>
+            <organizationUrl>https://horizondigital.dev</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/cyphera-labs/cyphera-java.git</connection>
+        <developerConnection>scm:git:ssh://github.com:cyphera-labs/cyphera-java.git</developerConnection>
+        <url>https://github.com/cyphera-labs/cyphera-java</url>
+    </scm>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -27,7 +43,6 @@
     </properties>
 
     <dependencies>
-        <!-- Test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -38,9 +53,13 @@
 
     <distributionManagement>
         <repository>
-            <id>github</id>
-            <url>https://maven.pkg.github.com/cyphera-labs/cyphera-java</url>
+            <id>central</id>
+            <url>https://central.sonatype.com/api/v1/publisher/deployments/upload</url>
         </repository>
+        <snapshotRepository>
+            <id>central</id>
+            <url>https://central.sonatype.com/api/v1/publisher/deployments/upload</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <build>
@@ -49,6 +68,61 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+            </plugin>
+
+            <!-- Sources JAR (required for Maven Central) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals><goal>jar-no-fork</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Javadoc JAR (required for Maven Central) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doclint>none</doclint>
+                </configuration>
+            </plugin>
+
+            <!-- GPG signing (required for Maven Central) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.4</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals><goal>sign</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Central publishing plugin -->
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.7.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
+                </configuration>
             </plugin>
         </plugins>
     </build>
