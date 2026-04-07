@@ -140,4 +140,30 @@ public class CypheraTest {
 
         assertThrows(IllegalArgumentException.class, () -> Cyphera.fromMap(config));
     }
+
+    @Test
+    void protectAndAccessAesGcm() {
+        Map<String, Object> config = buildConfig();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> policies = (Map<String, Object>) config.get("policies");
+
+        Map<String, Object> aesPolicy = new HashMap<>();
+        aesPolicy.put("engine", "aes_gcm");
+        aesPolicy.put("key_ref", "demo-key");
+        policies.put("ssn_aes", aesPolicy);
+
+        Cyphera c = Cyphera.fromMap(config);
+        String input = "123-45-6789";
+
+        String protectedVal = c.protect(input, "ssn_aes");
+        assertNotEquals(input, protectedVal);
+
+        // AES-GCM is not deterministic (random nonce), so protect twice gives different output
+        String protectedVal2 = c.protect(input, "ssn_aes");
+        assertNotEquals(protectedVal, protectedVal2);
+
+        // But both decrypt to the same input
+        assertEquals(input, c.access(protectedVal));
+        assertEquals(input, c.access(protectedVal2));
+    }
 }

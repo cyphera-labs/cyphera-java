@@ -1,5 +1,6 @@
 package io.cyphera;
 
+import io.cyphera.engine.aesgcm.AesGcm;
 import io.cyphera.engine.ff1.FF1;
 import io.cyphera.engine.ff3.FF3;
 
@@ -76,6 +77,7 @@ public final class Cyphera {
             case "ff3": return protectFf3(value, policy);
             case "mask": return protectMask(value, policy);
             case "hash": return protectHash(value, policy);
+            case "aes_gcm": return protectAesGcm(value, policy);
             default: throw new IllegalArgumentException("Unknown engine: " + engine);
         }
     }
@@ -227,6 +229,7 @@ public final class Cyphera {
         switch (engine) {
             case "ff1": return accessFf1(protectedValue, policy, hasTag);
             case "ff3": return accessFf3(protectedValue, policy, hasTag);
+            case "aes_gcm": return accessAesGcm(protectedValue, policy, hasTag);
             default: throw new IllegalArgumentException("Access not supported for engine: " + engine);
         }
     }
@@ -283,6 +286,23 @@ public final class Cyphera {
         } catch (Exception e) {
             throw new RuntimeException("FPE decryption failed: " + e.getMessage(), e);
         }
+    }
+
+    // -- Internal: AES-GCM protect/access --
+
+    private String protectAesGcm(String value, Policy policy) {
+        byte[] key = keyProvider.resolve(policy.keyRef());
+        String encrypted = AesGcm.encrypt(value, key);
+        if (policy.tagEnabled()) {
+            return policy.tag() + encrypted;
+        }
+        return encrypted;
+    }
+
+    private String accessAesGcm(String protectedValue, Policy policy, boolean hasTag) {
+        byte[] key = keyProvider.resolve(policy.keyRef());
+        String ciphertext = hasTag ? protectedValue.substring(policy.tagLength()) : protectedValue;
+        return AesGcm.decrypt(ciphertext, key);
     }
 
     private static String bytesToHex(byte[] bytes) {
