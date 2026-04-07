@@ -86,15 +86,11 @@ public final class Cyphera {
      * If untagged, the policyName must be provided.
      */
     public String access(String protectedValue) {
-        // Try to find a tag match
+        // Tag is just the first N chars of the string
         for (Map.Entry<String, Policy> e : tagIndex.entrySet()) {
             String tag = e.getKey();
-            Policy policy = e.getValue();
-
-            // Extract first N encryptable chars and check if they match the tag
-            String extracted = extractTag(protectedValue, policy.alphabet(), tag.length());
-            if (tag.equals(extracted)) {
-                return accessWithPolicy(protectedValue, policy, true);
+            if (protectedValue.length() > tag.length() && protectedValue.startsWith(tag)) {
+                return accessWithPolicy(protectedValue, e.getValue(), true);
             }
         }
         throw new IllegalArgumentException("No matching tag found. Use access(value, policyName) for untagged values.");
@@ -109,78 +105,55 @@ public final class Cyphera {
         return accessWithPolicy(protectedValue, policy, policy.tagEnabled());
     }
 
-    // -- Internal: FF1 protect --
+    // -- Internal: FPE protect (FF1 / FF3) --
 
-    private String protectFf1(String value, Policy policy) {
+    private String protectFf1(String value, Policy policy) { return protectFpe(value, policy, false); }
+    private String protectFf3(String value, Policy policy) { return protectFpe(value, policy, true); }
+
+    private String protectFpe(String value, Policy policy, boolean ff3) {
         try {
             byte[] key = keyProvider.resolve(policy.keyRef());
             String alphabet = policy.alphabet();
 
-            // Separate encryptable chars from passthrough chars
+            // 1. Strip passthroughs, record positions
+            int[] ptPositions = new int[value.length()];
+            char[] ptChars = new char[value.length()];
+            int ptCount = 0;
             StringBuilder encryptable = new StringBuilder();
-            boolean[] isPassthrough = new boolean[value.length()];
-            char[] passthroughChars = new char[value.length()];
-
-            for (int i = 0; i < value.length(); i++) {
-                char c = value.charAt(i);
-                if (alphabet.indexOf(c) >= 0) {
-                    encryptable.append(c);
-                    isPassthrough[i] = false;
-                } else {
-                    isPassthrough[i] = true;
-                    passthroughChars[i] = c;
-                }
-            }
-
-            FF1 ff1 = new FF1(key, new byte[0], alphabet);
-            String encrypted = ff1.encrypt(encryptable.toString());
-
-            // Prepend tag to encrypted chars
-            String taggedCipher = policy.tagEnabled() ? policy.tag() + encrypted : encrypted;
-
-            // Reinsert passthrough chars at original positions
-            return reinsertPassthrough(taggedCipher, isPassthrough, passthroughChars, value.length(),
-                                       policy.tagEnabled() ? policy.tagLength() : 0);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("FF1 encryption failed: " + e.getMessage(), e);
-        }
-    }
-
-    // -- Internal: FF3 protect --
-
-    private String protectFf3(String value, Policy policy) {
-        try {
-            byte[] key = keyProvider.resolve(policy.keyRef());
-            String alphabet = policy.alphabet();
-
-            StringBuilder encryptable = new StringBuilder();
-            boolean[] isPassthrough = new boolean[value.length()];
-            char[] passthroughChars = new char[value.length()];
-
             for (int i = 0; i < value.length(); i++) {
                 char c = value.charAt(i);
                 if (alphabet.indexOf(c) >= 0) {
                     encryptable.append(c);
                 } else {
-                    isPassthrough[i] = true;
-                    passthroughChars[i] = c;
+                    ptPositions[ptCount] = i;
+                    ptChars[ptCount] = c;
+                    ptCount++;
                 }
             }
 
-            // FF3 requires 8-byte tweak -- use zeroes as default
-            FF3 ff3 = new FF3(key, new byte[8], alphabet);
-            String encrypted = ff3.encrypt(encryptable.toString());
+            // 2. Encrypt
+            String encrypted;
+            if (ff3) {
+                encrypted = new FF3(key, new byte[8], alphabet).encrypt(encryptable.toString());
+            } else {
+                encrypted = new FF1(key, new byte[0], alphabet).encrypt(encryptable.toString());
+            }
 
-            String taggedCipher = policy.tagEnabled() ? policy.tag() + encrypted : encrypted;
+            // 3. Reinsert passthroughs at original positions
+            StringBuilder withPt = new StringBuilder(encrypted);
+            for (int i = 0; i < ptCount; i++) {
+                withPt.insert(ptPositions[i], ptChars[i]);
+            }
 
-            return reinsertPassthrough(taggedCipher, isPassthrough, passthroughChars, value.length(),
-                                       policy.tagEnabled() ? policy.tagLength() : 0);
+            // 4. Prepend tag
+            if (policy.tagEnabled()) {
+                return policy.tag() + withPt.toString();
+            }
+            return withPt.toString();
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("FF3 encryption failed: " + e.getMessage(), e);
+            throw new RuntimeException("FPE encryption failed: " + e.getMessage(), e);
         }
     }
 
@@ -259,142 +232,57 @@ public final class Cyphera {
     }
 
     private String accessFf1(String protectedValue, Policy policy, boolean hasTag) {
-        try {
-            byte[] key = keyProvider.resolve(policy.keyRef());
-            String alphabet = policy.alphabet();
-
-            // Extract encryptable chars (skip passthrough)
-            StringBuilder encryptable = new StringBuilder();
-            for (int i = 0; i < protectedValue.length(); i++) {
-                char c = protectedValue.charAt(i);
-                if (alphabet.indexOf(c) >= 0) {
-                    encryptable.append(c);
-                }
-            }
-
-            String cipherChars = encryptable.toString();
-
-            // Strip tag if present
-            if (hasTag && policy.tag() != null) {
-                cipherChars = cipherChars.substring(policy.tagLength());
-            }
-
-            FF1 ff1 = new FF1(key, new byte[0], alphabet);
-            String decrypted = ff1.decrypt(cipherChars);
-
-            // Reinsert passthrough chars at their original positions (minus tag offset)
-            return reinsertPassthroughForAccess(decrypted, protectedValue, alphabet,
-                                                 hasTag ? policy.tagLength() : 0);
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("FF1 decryption failed: " + e.getMessage(), e);
-        }
+        return accessFpe(protectedValue, policy, hasTag, false);
     }
 
     private String accessFf3(String protectedValue, Policy policy, boolean hasTag) {
+        return accessFpe(protectedValue, policy, hasTag, true);
+    }
+
+    private String accessFpe(String protectedValue, Policy policy, boolean hasTag, boolean ff3) {
         try {
             byte[] key = keyProvider.resolve(policy.keyRef());
             String alphabet = policy.alphabet();
 
+            // 1. Strip tag (first N chars of the full string)
+            String withoutTag = hasTag ? protectedValue.substring(policy.tagLength()) : protectedValue;
+
+            // 2. Strip passthroughs, record positions
+            int[] ptPositions = new int[withoutTag.length()];
+            char[] ptChars = new char[withoutTag.length()];
+            int ptCount = 0;
             StringBuilder encryptable = new StringBuilder();
-            for (int i = 0; i < protectedValue.length(); i++) {
-                char c = protectedValue.charAt(i);
+            for (int i = 0; i < withoutTag.length(); i++) {
+                char c = withoutTag.charAt(i);
                 if (alphabet.indexOf(c) >= 0) {
                     encryptable.append(c);
+                } else {
+                    ptPositions[ptCount] = i;
+                    ptChars[ptCount] = c;
+                    ptCount++;
                 }
             }
 
-            String cipherChars = encryptable.toString();
-            if (hasTag && policy.tag() != null) {
-                cipherChars = cipherChars.substring(policy.tagLength());
+            // 3. Decrypt
+            String decrypted;
+            if (ff3) {
+                decrypted = new FF3(key, new byte[8], alphabet).decrypt(encryptable.toString());
+            } else {
+                decrypted = new FF1(key, new byte[0], alphabet).decrypt(encryptable.toString());
             }
 
-            FF3 ff3 = new FF3(key, new byte[8], alphabet);
-            String decrypted = ff3.decrypt(cipherChars);
+            // 4. Reinsert passthroughs at original positions
+            StringBuilder result = new StringBuilder(decrypted);
+            for (int i = 0; i < ptCount; i++) {
+                result.insert(ptPositions[i], ptChars[i]);
+            }
 
-            return reinsertPassthroughForAccess(decrypted, protectedValue, alphabet,
-                                                 hasTag ? policy.tagLength() : 0);
+            return result.toString();
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("FF3 decryption failed: " + e.getMessage(), e);
+            throw new RuntimeException("FPE decryption failed: " + e.getMessage(), e);
         }
-    }
-
-    // -- Passthrough helpers --
-
-    /**
-     * Extract the first N encryptable characters from a value (skipping passthrough chars).
-     */
-    private String extractTag(String value, String alphabet, int tagLength) {
-        StringBuilder sb = new StringBuilder(tagLength);
-        for (int i = 0; i < value.length() && sb.length() < tagLength; i++) {
-            if (alphabet.indexOf(value.charAt(i)) >= 0) {
-                sb.append(value.charAt(i));
-            }
-        }
-        return sb.toString();
-    }
-
-    /**
-     * Reinsert passthrough characters from the original value into the cipher output.
-     * The output is longer than the input by tagLength chars (the tag adds characters).
-     */
-    private String reinsertPassthrough(String cipherChars, boolean[] isPassthrough,
-                                        char[] passthroughChars, int origLen, int tagExtra) {
-        int totalLen = origLen + tagExtra;
-        StringBuilder result = new StringBuilder(totalLen);
-        int cipherIdx = 0;
-
-        // Build the output: passthrough chars stay in their original positions,
-        // cipher chars fill the rest, extra tag chars extend the end
-        for (int i = 0; i < origLen; i++) {
-            if (isPassthrough[i]) {
-                result.append(passthroughChars[i]);
-            } else {
-                if (cipherIdx < cipherChars.length()) {
-                    result.append(cipherChars.charAt(cipherIdx++));
-                }
-            }
-        }
-        // Append remaining cipher chars (from the tag extension)
-        while (cipherIdx < cipherChars.length()) {
-            result.append(cipherChars.charAt(cipherIdx++));
-        }
-
-        return result.toString();
-    }
-
-    /**
-     * For access: reconstruct plaintext with passthrough chars from the protected value.
-     * The protected value is longer than the original by tagLength.
-     */
-    private String reinsertPassthroughForAccess(String decrypted, String protectedValue,
-                                                  String alphabet, int tagExtra) {
-        // The original had (protectedValue.length - tagExtra) total chars
-        int origLen = protectedValue.length() - tagExtra;
-        StringBuilder result = new StringBuilder(origLen);
-        int decIdx = 0;
-        int encCount = 0; // count of encryptable chars seen
-
-        // Walk the protected value, skip tag chars, preserve passthroughs
-        for (int i = 0; i < protectedValue.length() && result.length() < origLen; i++) {
-            char c = protectedValue.charAt(i);
-            if (alphabet.indexOf(c) >= 0) {
-                encCount++;
-                if (encCount <= tagExtra) {
-                    continue; // skip tag chars
-                }
-                if (decIdx < decrypted.length()) {
-                    result.append(decrypted.charAt(decIdx++));
-                }
-            } else {
-                result.append(c); // passthrough
-            }
-        }
-
-        return result.toString();
     }
 
     private static String bytesToHex(byte[] bytes) {
