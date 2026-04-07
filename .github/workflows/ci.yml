@@ -29,13 +29,10 @@ jobs:
         run: mvn -B test
 
   publish:
-    name: Publish
+    name: Publish to Maven Central
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v6
 
@@ -44,8 +41,13 @@ jobs:
         with:
           java-version: '11'
           distribution: 'temurin'
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
 
-      - name: Publish to GitHub Packages
+      - name: Publish
         run: mvn -B deploy -DskipTests
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
