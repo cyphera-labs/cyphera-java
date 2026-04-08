@@ -170,17 +170,15 @@ public class FF1 {
         int blocks = (d + 15) / 16;
         byte[] out = new byte[blocks * 16];
         System.arraycopy(R, 0, out, 0, 16);
-        byte[] prev = R.clone();
         for (int j = 1; j < blocks; j++) {
             byte[] x = new byte[16];
-            x[8] = (byte) (j >> 56); x[9] = (byte) (j >> 48);
-            x[10] = (byte) (j >> 40); x[11] = (byte) (j >> 32);
+            // [j]^16 — j as 16-byte big-endian integer
             x[12] = (byte) (j >> 24); x[13] = (byte) (j >> 16);
             x[14] = (byte) (j >> 8); x[15] = (byte) j;
-            for (int k = 0; k < 16; k++) x[k] ^= prev[k];
+            // XOR with R (not previous block) per NIST SP 800-38G
+            for (int k = 0; k < 16; k++) x[k] ^= R[k];
             byte[] enc = aes.doFinal(x);
             System.arraycopy(enc, 0, out, j * 16, 16);
-            prev = enc;
         }
         return Arrays.copyOf(out, d);
     }
