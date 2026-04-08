@@ -32,12 +32,30 @@ public class FF3 {
     }
 
     public String encrypt(String plaintext) throws Exception {
+        if (plaintext.isEmpty())
+            throw new IllegalArgumentException("Input must not be empty");
+        if (plaintext.length() < 2)
+            throw new IllegalArgumentException("FF3 requires at least 2 characters");
+        double domainSize = Math.pow(radix, plaintext.length());
+        if (domainSize < 1_000_000)
+            throw new IllegalArgumentException("Input too short: " + plaintext.length()
+                + " chars with radix " + radix + " (domain size " + (long) domainSize
+                + " < 1,000,000 minimum)");
         int[] digits = toDigits(plaintext);
         int[] result = ff3Encrypt(digits);
         return fromDigits(result);
     }
 
     public String decrypt(String ciphertext) throws Exception {
+        if (ciphertext.isEmpty())
+            throw new IllegalArgumentException("Input must not be empty");
+        if (ciphertext.length() < 2)
+            throw new IllegalArgumentException("FF3 requires at least 2 characters");
+        double domainSize = Math.pow(radix, ciphertext.length());
+        if (domainSize < 1_000_000)
+            throw new IllegalArgumentException("Input too short: " + ciphertext.length()
+                + " chars with radix " + radix + " (domain size " + (long) domainSize
+                + " < 1,000,000 minimum)");
         int[] digits = toDigits(ciphertext);
         int[] result = ff3Decrypt(digits);
         return fromDigits(result);

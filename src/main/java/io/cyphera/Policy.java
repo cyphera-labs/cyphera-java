@@ -55,30 +55,12 @@ public final class Policy {
         String pattern = (String) map.get("pattern");
         String algorithm = (String) map.getOrDefault("algorithm", "sha256");
 
-        // Auto-generate tag if not provided and tag is enabled
-        if (tag == null && tagEnabled) {
-            tag = generateTag(name, tagLength);
+        // Tag must be provided in policy if tag_enabled is true
+        if (tagEnabled && (tag == null || tag.isEmpty())) {
+            throw new IllegalArgumentException("Policy '" + name + "' has tag_enabled=true but no tag specified. The tag must be set in the policy.");
         }
 
         return new Policy(name, engine, alphabet, keyRef, tag, tagEnabled, tagLength, pattern, algorithm);
-    }
-
-    // Generate a deterministic tag from the policy name
-    // Use a simple hash of the name to pick chars from ALPHANUMERIC
-    private static String generateTag(String name, int length) {
-        String chars = Alphabets.ALPHANUMERIC;
-        int hash = 0;
-        for (int i = 0; i < name.length(); i++) {
-            hash = 31 * hash + name.charAt(i);
-        }
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            // Mix bits for each position
-            int h = hash ^ (hash >>> 16) ^ (i * 0x9e3779b9);
-            if (h < 0) h = -h;
-            sb.append(chars.charAt(h % chars.length()));
-        }
-        return sb.toString();
     }
 
     public boolean isReversible() {

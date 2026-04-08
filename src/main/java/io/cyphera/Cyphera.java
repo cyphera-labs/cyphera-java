@@ -133,7 +133,12 @@ public final class Cyphera {
                 }
             }
 
-            // 2. Encrypt
+            // 2. Check for zero encryptable chars
+            if (encryptable.length() == 0) {
+                throw new IllegalArgumentException("No encryptable characters in input");
+            }
+
+            // 3. Encrypt
             String encrypted;
             if (ff3) {
                 encrypted = new FF3(key, new byte[8], alphabet).encrypt(encryptable.toString());
@@ -165,25 +170,28 @@ public final class Cyphera {
         String pattern = policy.pattern();
         if (pattern == null) throw new IllegalArgumentException("Mask policy requires 'pattern'");
 
-        // Simple pattern: replace * with *, {last4} with last 4 chars, {first3} with first 3 chars
-        String result = pattern;
-        if (result.contains("{last4}")) {
-            String last4 = value.length() >= 4 ? value.substring(value.length() - 4) : value;
-            result = result.replace("{last4}", last4);
+        int len = value.length();
+        char mask = '*';
+
+        switch (pattern) {
+            case "last4": case "last_4":
+                return repeat(mask, Math.max(0, len - 4)) + value.substring(Math.max(0, len - 4));
+            case "last2": case "last_2":
+                return repeat(mask, Math.max(0, len - 2)) + value.substring(Math.max(0, len - 2));
+            case "first1": case "first_1":
+                return (len >= 1 ? value.substring(0, 1) : "") + repeat(mask, Math.max(0, len - 1));
+            case "first3": case "first_3":
+                return (len >= 3 ? value.substring(0, 3) : value) + repeat(mask, Math.max(0, len - 3));
+            case "full":
+            default:
+                return repeat(mask, len);
         }
-        if (result.contains("{last2}")) {
-            String last2 = value.length() >= 2 ? value.substring(value.length() - 2) : value;
-            result = result.replace("{last2}", last2);
-        }
-        if (result.contains("{first3}")) {
-            String first3 = value.length() >= 3 ? value.substring(0, 3) : value;
-            result = result.replace("{first3}", first3);
-        }
-        if (result.contains("{first1}")) {
-            String first1 = value.length() >= 1 ? value.substring(0, 1) : value;
-            result = result.replace("{first1}", first1);
-        }
-        return result;
+    }
+
+    private static String repeat(char c, int count) {
+        StringBuilder sb = new StringBuilder(count);
+        for (int i = 0; i < count; i++) sb.append(c);
+        return sb.toString();
     }
 
     // -- Internal: Hash protect --

@@ -17,6 +17,7 @@ public class CypheraTest {
         Map<String, Object> ssn = new HashMap<>();
         ssn.put("engine", "ff1");
         ssn.put("key_ref", "demo-key");
+        ssn.put("tag", "T01");
         // defaults: alphabet=alphanumeric, tag_enabled=true, tag_length=3
         policies.put("ssn", ssn);
 
@@ -29,13 +30,15 @@ public class CypheraTest {
 
         Map<String, Object> ssnMask = new HashMap<>();
         ssnMask.put("engine", "mask");
-        ssnMask.put("pattern", "***-**-{last4}");
+        ssnMask.put("pattern", "last4");
+        ssnMask.put("tag_enabled", false);
         policies.put("ssn_mask", ssnMask);
 
         Map<String, Object> ssnHash = new HashMap<>();
         ssnHash.put("engine", "hash");
         ssnHash.put("algorithm", "sha256");
         ssnHash.put("key_ref", "demo-key");
+        ssnHash.put("tag_enabled", false);
         policies.put("ssn_hash", ssnHash);
 
         config.put("policies", policies);
@@ -92,7 +95,7 @@ public class CypheraTest {
     void protectMask() {
         Cyphera c = Cyphera.fromMap(buildConfig());
         String result = c.protect("123-45-6789", "ssn_mask");
-        assertEquals("***-**-6789", result);
+        assertEquals("*******6789", result);
     }
 
     @Test
@@ -150,6 +153,7 @@ public class CypheraTest {
         Map<String, Object> aesPolicy = new HashMap<>();
         aesPolicy.put("engine", "aes_gcm");
         aesPolicy.put("key_ref", "demo-key");
+        aesPolicy.put("tag", "T02");
         policies.put("ssn_aes", aesPolicy);
 
         Cyphera c = Cyphera.fromMap(config);

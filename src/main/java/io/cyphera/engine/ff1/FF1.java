@@ -30,12 +30,28 @@ public class FF1 {
     }
 
     public String encrypt(String plaintext) throws Exception {
+        if (plaintext.isEmpty())
+            throw new IllegalArgumentException("Input must not be empty");
+        // NIST SP 800-38G: radix^minlen >= 1,000,000
+        double domainSize = Math.pow(radix, plaintext.length());
+        if (domainSize < 1_000_000)
+            throw new IllegalArgumentException("Input too short: " + plaintext.length()
+                + " chars with radix " + radix + " (domain size " + (long) domainSize
+                + " < 1,000,000 minimum)");
+
         int[] digits = toDigits(plaintext);
         int[] result = ff1Encrypt(digits, tweak);
         return fromDigits(result);
     }
 
     public String decrypt(String ciphertext) throws Exception {
+        if (ciphertext.isEmpty())
+            throw new IllegalArgumentException("Input must not be empty");
+        double domainSize = Math.pow(radix, ciphertext.length());
+        if (domainSize < 1_000_000)
+            throw new IllegalArgumentException("Input too short: " + ciphertext.length()
+                + " chars with radix " + radix + " (domain size " + (long) domainSize
+                + " < 1,000,000 minimum)");
         int[] digits = toDigits(ciphertext);
         int[] result = ff1Decrypt(digits, tweak);
         return fromDigits(result);
