@@ -62,6 +62,45 @@ public final class Cyphera {
     }
 
     /**
+     * Load from a JSON file path.
+     */
+    public static Cyphera fromFile(String path) {
+        try {
+            String contents = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(path)));
+            Map<String, Object> config = JsonParser.parse(contents);
+            return fromMap(config);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Failed to load policy file: " + path, e);
+        }
+    }
+
+    /**
+     * Auto-discover policy file using standard precedence:
+     * 1. CYPHERA_POLICY_FILE env var
+     * 2. ./cyphera.json
+     * 3. /etc/cyphera/cyphera.json
+     */
+    public static Cyphera load() {
+        String envPath = System.getenv("CYPHERA_POLICY_FILE");
+        if (envPath != null && java.nio.file.Files.exists(java.nio.file.Paths.get(envPath))) {
+            return fromFile(envPath);
+        }
+
+        String localPath = "cyphera.json";
+        if (java.nio.file.Files.exists(java.nio.file.Paths.get(localPath))) {
+            return fromFile(localPath);
+        }
+
+        String systemPath = "/etc/cyphera/cyphera.json";
+        if (java.nio.file.Files.exists(java.nio.file.Paths.get(systemPath))) {
+            return fromFile(systemPath);
+        }
+
+        throw new IllegalStateException(
+            "No policy file found. Checked: CYPHERA_POLICY_FILE env, ./cyphera.json, /etc/cyphera/cyphera.json");
+    }
+
+    /**
      * Protect a value using a named policy.
      * Returns tagged ciphertext (unless tag is disabled in policy).
      * Passthrough characters (non-alphabet chars like dashes, spaces) are preserved in place.
