@@ -54,18 +54,21 @@ String decrypted = c.access(encrypted);
 
 ## Cross-Language Compatible
 
-Java, Rust, and Node produce identical output for the same inputs:
+All six SDKs produce identical output for the same inputs:
 
 ```
 Input:       123-45-6789
 Java:        T01i6J-xF-07pX
 Rust:        T01i6J-xF-07pX
 Node:        T01i6J-xF-07pX
+Python:      T01i6J-xF-07pX
+Go:          T01i6J-xF-07pX
+.NET:        T01i6J-xF-07pX
 ```
 
 ## Status
 
-Alpha. API is unstable. Cross-language test vectors validated against Rust and Node implementations.
+Alpha. API is unstable. Cross-language test vectors validated against Rust, Node, Python, Go, and .NET implementations.
 
 ## License
 
