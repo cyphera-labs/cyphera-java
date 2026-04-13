@@ -143,7 +143,7 @@ public final class Cyphera {
     public String access(String protectedValue, String policyName) {
         Policy policy = policies.get(policyName);
         if (policy == null) throw new IllegalArgumentException("Unknown policy: " + policyName);
-        return accessWithPolicy(protectedValue, policy, policy.tagEnabled());
+        return accessWithPolicy(protectedValue, policy, false);
     }
 
     // -- Internal: FPE protect (FF1 / FF3) --
