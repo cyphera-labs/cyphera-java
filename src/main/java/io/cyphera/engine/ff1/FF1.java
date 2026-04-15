@@ -153,6 +153,8 @@ public class FF1 {
     }
 
     private byte[] prf(byte[] data) throws Exception {
+        // NIST SP 800-38G requires AES-ECB as the PRF for FF1/FF3 Feistel rounds.
+        // This is single-block encryption used as a building block, not ECB mode applied to user data.
         Cipher aes = Cipher.getInstance("AES/ECB/NoPadding");
         aes.init(Cipher.ENCRYPT_MODE, keySpec);
         byte[] y = new byte[16];
@@ -165,6 +167,8 @@ public class FF1 {
     }
 
     private byte[] expandS(byte[] R, int d) throws Exception {
+        // NIST SP 800-38G requires AES-ECB as the PRF for FF1/FF3 Feistel rounds.
+        // This is single-block encryption used as a building block, not ECB mode applied to user data.
         Cipher aes = Cipher.getInstance("AES/ECB/NoPadding");
         aes.init(Cipher.ENCRYPT_MODE, keySpec);
         int blocks = (d + 15) / 16;

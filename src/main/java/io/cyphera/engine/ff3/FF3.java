@@ -129,6 +129,8 @@ public class FF3 {
         else System.arraycopy(hb, hb.length - 12, input, 4, 12);
 
         byte[] rev = reverseBytes(input);
+        // NIST SP 800-38G requires AES-ECB as the PRF for FF1/FF3 Feistel rounds.
+        // This is single-block encryption used as a building block, not ECB mode applied to user data.
         Cipher aes = Cipher.getInstance("AES/ECB/NoPadding");
         aes.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"));
         return new BigInteger(1, reverseBytes(aes.doFinal(rev)));
