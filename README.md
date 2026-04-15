@@ -1,6 +1,7 @@
 # cyphera
 
 [![CI](https://github.com/cyphera-labs/cyphera-java/actions/workflows/ci.yml/badge.svg)](https://github.com/cyphera-labs/cyphera-java/actions/workflows/ci.yml)
+[![Security](https://github.com/cyphera-labs/cyphera-java/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyphera-labs/cyphera-java/actions/workflows/codeql.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.cyphera/cyphera)](https://central.sonatype.com/artifact/io.cyphera/cyphera)
 [![Java](https://img.shields.io/badge/java-8%2B-orange)](https://www.oracle.com/java/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
