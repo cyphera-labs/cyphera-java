@@ -145,6 +145,22 @@ public class CypheraTest {
     }
 
     @Test
+    void accessTwoArgOnHeaderedConfigurationThrows() {
+        Cyphera c = Cyphera.fromMap(buildConfig());
+        // "ssn" has header_enabled=true. The two-arg form is for headerless
+        // configurations only -- calling it here must error cleanly instead
+        // of silently returning garbage.
+        String protectedVal = c.protect("123-45-6789", "ssn");
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class,
+            () -> c.access(protectedVal, "ssn"));
+        assertTrue(ex.getMessage().contains("header_enabled=true"),
+            "Expected stable error message about header_enabled=true, got: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("ssn"),
+            "Expected error to name the configuration, got: " + ex.getMessage());
+    }
+
+    @Test
     void protectAndAccessAesGcm() {
         Map<String, Object> config = buildConfig();
         @SuppressWarnings("unchecked")

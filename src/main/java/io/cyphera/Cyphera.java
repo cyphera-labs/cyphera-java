@@ -122,28 +122,36 @@ public final class Cyphera {
     }
 
     /**
-     * Access (decrypt/reverse) a protected value.
-     * If DPH-prefixed, the configuration is determined from the header automatically.
-     * If un-prefixed, the configurationName must be provided.
+     * Access (decrypt/reverse) a protected value using the embedded header (DPH).
+     * Looks up the header from the first N chars, finds the configuration,
+     * strips the header, and decrypts.
      */
     public String access(String protectedValue) {
-        // Header is just the first N chars of the string
         for (Map.Entry<String, Configuration> e : headerIndex.entrySet()) {
             String header = e.getKey();
             if (protectedValue.length() > header.length() && protectedValue.startsWith(header)) {
-                return accessWithConfiguration(protectedValue, e.getValue(), true);
+                Configuration configuration = e.getValue();
+                String stripped = protectedValue.substring(header.length());
+                return accessWithConfiguration(stripped, configuration);
             }
         }
-        throw new IllegalArgumentException("No matching header found. Use access(value, configurationName) for un-prefixed values.");
+        throw new IllegalArgumentException("No matching header found. Use access(value, configurationName) for headerless values.");
     }
 
     /**
-     * Access with explicit configuration name -- for un-prefixed values.
+     * Access with explicit configuration name. The configuration must have
+     * {@code header_enabled = false} -- the two-arg form treats the input as
+     * raw headerless ciphertext. For headered configurations, use
+     * {@link #access(String)} so the header identifies the configuration.
      */
     public String access(String protectedValue, String configurationName) {
         Configuration configuration = configurations.get(configurationName);
         if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
-        return accessWithConfiguration(protectedValue, configuration, false);
+        if (configuration.headerEnabled()) {
+            throw new IllegalArgumentException(
+                "configuration '" + configurationName + "' has header_enabled=true; use access(value) — the header identifies the configuration. The two-arg form is for header_enabled=false configurations only.");
+        }
+        return accessWithConfiguration(protectedValue, configuration);
     }
 
     // -- Internal: FPE protect (FF1 / FF3) --
@@ -266,44 +274,35 @@ public final class Cyphera {
     }
 
     // -- Internal: access with known configuration --
+    // {@code protectedValue} is always raw headerless ciphertext at this point;
+    // the header (if any) has already been stripped by the caller.
 
-    private String accessWithConfiguration(String protectedValue, Configuration configuration, boolean hasHeader) {
+    private String accessWithConfiguration(String protectedValue, Configuration configuration) {
         if (!configuration.isReversible()) {
             throw new IllegalArgumentException("Configuration '" + configuration.name() + "' uses engine '" + configuration.engine() + "' which is not reversible");
         }
 
         String engine = configuration.engine();
         switch (engine) {
-            case "ff1": return accessFf1(protectedValue, configuration, hasHeader);
-            case "ff3": return accessFf3(protectedValue, configuration, hasHeader);
-            case "aes_gcm": return accessAesGcm(protectedValue, configuration, hasHeader);
+            case "ff1": return accessFpe(protectedValue, configuration, false);
+            case "ff3": return accessFpe(protectedValue, configuration, true);
+            case "aes_gcm": return accessAesGcm(protectedValue, configuration);
             default: throw new IllegalArgumentException("Access not supported for engine: " + engine);
         }
     }
 
-    private String accessFf1(String protectedValue, Configuration configuration, boolean hasHeader) {
-        return accessFpe(protectedValue, configuration, hasHeader, false);
-    }
-
-    private String accessFf3(String protectedValue, Configuration configuration, boolean hasHeader) {
-        return accessFpe(protectedValue, configuration, hasHeader, true);
-    }
-
-    private String accessFpe(String protectedValue, Configuration configuration, boolean hasHeader, boolean ff3) {
+    private String accessFpe(String protectedValue, Configuration configuration, boolean ff3) {
         try {
             byte[] key = keyProvider.resolve(configuration.keyRef());
             String alphabet = configuration.alphabet();
 
-            // 1. Strip header (first N chars of the full string)
-            String withoutHeader = hasHeader ? protectedValue.substring(configuration.headerLength()) : protectedValue;
-
-            // 2. Strip passthroughs, record positions
-            int[] ptPositions = new int[withoutHeader.length()];
-            char[] ptChars = new char[withoutHeader.length()];
+            // 1. Strip passthroughs, record positions
+            int[] ptPositions = new int[protectedValue.length()];
+            char[] ptChars = new char[protectedValue.length()];
             int ptCount = 0;
             StringBuilder encryptable = new StringBuilder();
-            for (int i = 0; i < withoutHeader.length(); i++) {
-                char c = withoutHeader.charAt(i);
+            for (int i = 0; i < protectedValue.length(); i++) {
+                char c = protectedValue.charAt(i);
                 if (alphabet.indexOf(c) >= 0) {
                     encryptable.append(c);
                 } else {
@@ -313,7 +312,7 @@ public final class Cyphera {
                 }
             }
 
-            // 3. Decrypt
+            // 2. Decrypt
             String decrypted;
             if (ff3) {
                 decrypted = new FF3(key, new byte[8], alphabet).decrypt(encryptable.toString());
@@ -321,7 +320,7 @@ public final class Cyphera {
                 decrypted = new FF1(key, new byte[0], alphabet).decrypt(encryptable.toString());
             }
 
-            // 4. Reinsert passthroughs at original positions
+            // 3. Reinsert passthroughs at original positions
             StringBuilder result = new StringBuilder(decrypted);
             for (int i = 0; i < ptCount; i++) {
                 result.insert(ptPositions[i], ptChars[i]);
@@ -346,10 +345,9 @@ public final class Cyphera {
         return encrypted;
     }
 
-    private String accessAesGcm(String protectedValue, Configuration configuration, boolean hasHeader) {
+    private String accessAesGcm(String protectedValue, Configuration configuration) {
         byte[] key = keyProvider.resolve(configuration.keyRef());
-        String ciphertext = hasHeader ? protectedValue.substring(configuration.headerLength()) : protectedValue;
-        return AesGcm.decrypt(ciphertext, key);
+        return AesGcm.decrypt(protectedValue, key);
     }
 
     private static String bytesToHex(byte[] bytes) {
