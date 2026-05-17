@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Minimal JSON parser for Cyphera policy files.
+ * Minimal JSON parser for Cyphera configuration files.
  * Supports objects, strings, numbers, booleans, null. No arrays.
  * Zero dependencies — pure Java.
  */

@@ -11,37 +11,37 @@ public class CypheraTest {
     private static Map<String, Object> buildConfig() {
         Map<String, Object> config = new HashMap<>();
 
-        // Policies
-        Map<String, Object> policies = new HashMap<>();
+        // Configurations
+        Map<String, Object> configurations = new HashMap<>();
 
         Map<String, Object> ssn = new HashMap<>();
         ssn.put("engine", "ff1");
         ssn.put("key_ref", "demo-key");
-        ssn.put("tag", "T01");
-        // defaults: alphabet=alphanumeric, tag_enabled=true, tag_length=3
-        policies.put("ssn", ssn);
+        ssn.put("header", "T01");
+        // defaults: alphabet=alphanumeric, header_enabled=true, header_length=3
+        configurations.put("ssn", ssn);
 
         Map<String, Object> ssnDigits = new HashMap<>();
         ssnDigits.put("engine", "ff1");
         ssnDigits.put("alphabet", "digits");
-        ssnDigits.put("tag_enabled", false);
+        ssnDigits.put("header_enabled", false);
         ssnDigits.put("key_ref", "demo-key");
-        policies.put("ssn_digits", ssnDigits);
+        configurations.put("ssn_digits", ssnDigits);
 
         Map<String, Object> ssnMask = new HashMap<>();
         ssnMask.put("engine", "mask");
         ssnMask.put("pattern", "last4");
-        ssnMask.put("tag_enabled", false);
-        policies.put("ssn_mask", ssnMask);
+        ssnMask.put("header_enabled", false);
+        configurations.put("ssn_mask", ssnMask);
 
         Map<String, Object> ssnHash = new HashMap<>();
         ssnHash.put("engine", "hash");
         ssnHash.put("algorithm", "sha256");
         ssnHash.put("key_ref", "demo-key");
-        ssnHash.put("tag_enabled", false);
-        policies.put("ssn_hash", ssnHash);
+        ssnHash.put("header_enabled", false);
+        configurations.put("ssn_hash", ssnHash);
 
-        config.put("policies", policies);
+        config.put("configurations", configurations);
 
         // Keys
         Map<String, Object> keys = new HashMap<>();
@@ -54,13 +54,13 @@ public class CypheraTest {
     }
 
     @Test
-    void protectAndAccessWithTag() {
+    void protectAndAccessWithHeader() {
         Cyphera c = Cyphera.fromMap(buildConfig());
         String ssn = "123456789";
 
         String protectedVal = c.protect(ssn, "ssn");
         assertNotEquals(ssn, protectedVal);
-        assertTrue(protectedVal.length() > ssn.length()); // tag adds chars
+        assertTrue(protectedVal.length() > ssn.length()); // header adds chars
 
         String accessed = c.access(protectedVal);
         assertEquals(ssn, accessed);
@@ -80,12 +80,12 @@ public class CypheraTest {
     }
 
     @Test
-    void protectAndAccessUntaggedDigits() {
+    void protectAndAccessUnHeaderedDigits() {
         Cyphera c = Cyphera.fromMap(buildConfig());
         String ssn = "123456789";
 
         String protectedVal = c.protect(ssn, "ssn_digits");
-        assertEquals(ssn.length(), protectedVal.length()); // no tag, same length
+        assertEquals(ssn.length(), protectedVal.length()); // no header, same length
 
         String accessed = c.access(protectedVal, "ssn_digits");
         assertEquals(ssn, accessed);
@@ -117,29 +117,29 @@ public class CypheraTest {
     }
 
     @Test
-    void accessUnknownTagThrows() {
+    void accessUnknownHeaderThrows() {
         Cyphera c = Cyphera.fromMap(buildConfig());
         assertThrows(IllegalArgumentException.class, () -> c.access("zzz123456789"));
     }
 
     @Test
-    void tagCollisionThrows() {
+    void headerCollisionThrows() {
         Map<String, Object> config = buildConfig();
         @SuppressWarnings("unchecked")
-        Map<String, Object> policies = (Map<String, Object>) config.get("policies");
+        Map<String, Object> configurations = (Map<String, Object>) config.get("configurations");
 
-        // Force two policies with the same tag
-        Map<String, Object> p1 = new HashMap<>();
-        p1.put("engine", "ff1");
-        p1.put("key_ref", "demo-key");
-        p1.put("tag", "ABC");
-        policies.put("policy_a", p1);
+        // Force two configurations with the same header
+        Map<String, Object> c1 = new HashMap<>();
+        c1.put("engine", "ff1");
+        c1.put("key_ref", "demo-key");
+        c1.put("header", "ABC");
+        configurations.put("configuration_a", c1);
 
-        Map<String, Object> p2 = new HashMap<>();
-        p2.put("engine", "ff1");
-        p2.put("key_ref", "demo-key");
-        p2.put("tag", "ABC");
-        policies.put("policy_b", p2);
+        Map<String, Object> c2 = new HashMap<>();
+        c2.put("engine", "ff1");
+        c2.put("key_ref", "demo-key");
+        c2.put("header", "ABC");
+        configurations.put("configuration_b", c2);
 
         assertThrows(IllegalArgumentException.class, () -> Cyphera.fromMap(config));
     }
@@ -148,13 +148,13 @@ public class CypheraTest {
     void protectAndAccessAesGcm() {
         Map<String, Object> config = buildConfig();
         @SuppressWarnings("unchecked")
-        Map<String, Object> policies = (Map<String, Object>) config.get("policies");
+        Map<String, Object> configurations = (Map<String, Object>) config.get("configurations");
 
-        Map<String, Object> aesPolicy = new HashMap<>();
-        aesPolicy.put("engine", "aes_gcm");
-        aesPolicy.put("key_ref", "demo-key");
-        aesPolicy.put("tag", "T02");
-        policies.put("ssn_aes", aesPolicy);
+        Map<String, Object> aesConfiguration = new HashMap<>();
+        aesConfiguration.put("engine", "aes_gcm");
+        aesConfiguration.put("key_ref", "demo-key");
+        aesConfiguration.put("header", "T02");
+        configurations.put("ssn_aes", aesConfiguration);
 
         Cyphera c = Cyphera.fromMap(config);
         String input = "123-45-6789";

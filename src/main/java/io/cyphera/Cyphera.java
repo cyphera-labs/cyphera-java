@@ -8,42 +8,42 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class Cyphera {
-    private final Map<String, Policy> policies = new HashMap<>();
-    private final Map<String, Policy> tagIndex = new HashMap<>(); // tag -> policy
+    private final Map<String, Configuration> configurations = new HashMap<>();
+    private final Map<String, Configuration> headerIndex = new HashMap<>(); // header -> configuration
     private final KeyProvider keyProvider;
 
-    private Cyphera(Map<String, Policy> policies, KeyProvider keyProvider) {
+    private Cyphera(Map<String, Configuration> configurations, KeyProvider keyProvider) {
         this.keyProvider = keyProvider;
-        for (Map.Entry<String, Policy> e : policies.entrySet()) {
-            Policy p = e.getValue();
-            this.policies.put(e.getKey(), p);
-            if (p.tagEnabled() && p.tag() != null) {
-                if (this.tagIndex.containsKey(p.tag())) {
+        for (Map.Entry<String, Configuration> e : configurations.entrySet()) {
+            Configuration cfg = e.getValue();
+            this.configurations.put(e.getKey(), cfg);
+            if (cfg.headerEnabled() && cfg.header() != null) {
+                if (this.headerIndex.containsKey(cfg.header())) {
                     throw new IllegalArgumentException(
-                        "Tag collision: '" + p.tag() + "' used by both '" +
-                        this.tagIndex.get(p.tag()).name() + "' and '" + p.name() + "'");
+                        "Header collision: '" + cfg.header() + "' used by both '" +
+                        this.headerIndex.get(cfg.header()).name() + "' and '" + cfg.name() + "'");
                 }
-                this.tagIndex.put(p.tag(), p);
+                this.headerIndex.put(cfg.header(), cfg);
             }
         }
     }
 
     /**
      * Build from a native Map -- the zero-dep way.
-     * Map structure: { "policies": { "ssn": { "engine": "ff1", ... } }, "keys": { "my-key": { "material": "hex" } } }
+     * Map structure: { "configurations": { "ssn": { "engine": "ff1", ... } }, "keys": { "my-key": { "material": "hex" } } }
      */
     @SuppressWarnings("unchecked")
     public static Cyphera fromMap(Map<String, Object> config) {
-        Map<String, Object> policiesMap = (Map<String, Object>) config.getOrDefault("policies", new HashMap<>());
+        Map<String, Object> configurationsMap = (Map<String, Object>) config.getOrDefault("configurations", new HashMap<>());
         Map<String, Object> keysMap = (Map<String, Object>) config.getOrDefault("keys", new HashMap<>());
 
-        Map<String, Policy> policies = new HashMap<>();
-        for (Map.Entry<String, Object> e : policiesMap.entrySet()) {
-            policies.put(e.getKey(), Policy.fromMap(e.getKey(), (Map<String, Object>) e.getValue()));
+        Map<String, Configuration> configurations = new HashMap<>();
+        for (Map.Entry<String, Object> e : configurationsMap.entrySet()) {
+            configurations.put(e.getKey(), Configuration.fromMap(e.getKey(), (Map<String, Object>) e.getValue()));
         }
 
         KeyProvider keyProvider = new MemoryKeyProvider(keysMap);
-        return new Cyphera(policies, keyProvider);
+        return new Cyphera(configurations, keyProvider);
     }
 
     /**
@@ -51,14 +51,14 @@ public final class Cyphera {
      */
     @SuppressWarnings("unchecked")
     public static Cyphera fromMap(Map<String, Object> config, KeyProvider keyProvider) {
-        Map<String, Object> policiesMap = (Map<String, Object>) config.getOrDefault("policies", new HashMap<>());
+        Map<String, Object> configurationsMap = (Map<String, Object>) config.getOrDefault("configurations", new HashMap<>());
 
-        Map<String, Policy> policies = new HashMap<>();
-        for (Map.Entry<String, Object> e : policiesMap.entrySet()) {
-            policies.put(e.getKey(), Policy.fromMap(e.getKey(), (Map<String, Object>) e.getValue()));
+        Map<String, Configuration> configurations = new HashMap<>();
+        for (Map.Entry<String, Object> e : configurationsMap.entrySet()) {
+            configurations.put(e.getKey(), Configuration.fromMap(e.getKey(), (Map<String, Object>) e.getValue()));
         }
 
-        return new Cyphera(policies, keyProvider);
+        return new Cyphera(configurations, keyProvider);
     }
 
     /**
@@ -70,18 +70,18 @@ public final class Cyphera {
             Map<String, Object> config = JsonParser.parse(contents);
             return fromMap(config);
         } catch (java.io.IOException e) {
-            throw new RuntimeException("Failed to load policy file: " + path, e);
+            throw new RuntimeException("Failed to load configuration file: " + path, e);
         }
     }
 
     /**
-     * Auto-discover policy file using standard precedence:
-     * 1. CYPHERA_POLICY_FILE env var
+     * Auto-discover configuration file using standard precedence:
+     * 1. CYPHERA_CONFIG_FILE env var
      * 2. ./cyphera.json
      * 3. /etc/cyphera/cyphera.json
      */
     public static Cyphera load() {
-        String envPath = System.getenv("CYPHERA_POLICY_FILE");
+        String envPath = System.getenv("CYPHERA_CONFIG_FILE");
         if (envPath != null && java.nio.file.Files.exists(java.nio.file.Paths.get(envPath))) {
             return fromFile(envPath);
         }
@@ -97,64 +97,64 @@ public final class Cyphera {
         }
 
         throw new IllegalStateException(
-            "No policy file found. Checked: CYPHERA_POLICY_FILE env, ./cyphera.json, /etc/cyphera/cyphera.json");
+            "No configuration file found. Checked: CYPHERA_CONFIG_FILE env, ./cyphera.json, /etc/cyphera/cyphera.json");
     }
 
     /**
-     * Protect a value using a named policy.
-     * Returns tagged ciphertext (unless tag is disabled in policy).
+     * Protect a value using a named configuration.
+     * Returns DPH-prefixed output (unless header is disabled in configuration).
      * Passthrough characters (non-alphabet chars like dashes, spaces) are preserved in place.
      */
-    public String protect(String value, String policyName) {
-        Policy policy = policies.get(policyName);
-        if (policy == null) throw new IllegalArgumentException("Unknown policy: " + policyName);
+    public String protect(String value, String configurationName) {
+        Configuration configuration = configurations.get(configurationName);
+        if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
 
-        String engine = policy.engine();
+        String engine = configuration.engine();
 
         switch (engine) {
-            case "ff1": return protectFf1(value, policy);
-            case "ff3": return protectFf3(value, policy);
-            case "mask": return protectMask(value, policy);
-            case "hash": return protectHash(value, policy);
-            case "aes_gcm": return protectAesGcm(value, policy);
+            case "ff1": return protectFf1(value, configuration);
+            case "ff3": return protectFf3(value, configuration);
+            case "mask": return protectMask(value, configuration);
+            case "hash": return protectHash(value, configuration);
+            case "aes_gcm": return protectAesGcm(value, configuration);
             default: throw new IllegalArgumentException("Unknown engine: " + engine);
         }
     }
 
     /**
      * Access (decrypt/reverse) a protected value.
-     * If tagged, the policy is determined from the tag automatically.
-     * If untagged, the policyName must be provided.
+     * If DPH-prefixed, the configuration is determined from the header automatically.
+     * If un-prefixed, the configurationName must be provided.
      */
     public String access(String protectedValue) {
-        // Tag is just the first N chars of the string
-        for (Map.Entry<String, Policy> e : tagIndex.entrySet()) {
-            String tag = e.getKey();
-            if (protectedValue.length() > tag.length() && protectedValue.startsWith(tag)) {
-                return accessWithPolicy(protectedValue, e.getValue(), true);
+        // Header is just the first N chars of the string
+        for (Map.Entry<String, Configuration> e : headerIndex.entrySet()) {
+            String header = e.getKey();
+            if (protectedValue.length() > header.length() && protectedValue.startsWith(header)) {
+                return accessWithConfiguration(protectedValue, e.getValue(), true);
             }
         }
-        throw new IllegalArgumentException("No matching tag found. Use access(value, policyName) for untagged values.");
+        throw new IllegalArgumentException("No matching header found. Use access(value, configurationName) for un-prefixed values.");
     }
 
     /**
-     * Access with explicit policy name -- for untagged values.
+     * Access with explicit configuration name -- for un-prefixed values.
      */
-    public String access(String protectedValue, String policyName) {
-        Policy policy = policies.get(policyName);
-        if (policy == null) throw new IllegalArgumentException("Unknown policy: " + policyName);
-        return accessWithPolicy(protectedValue, policy, false);
+    public String access(String protectedValue, String configurationName) {
+        Configuration configuration = configurations.get(configurationName);
+        if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
+        return accessWithConfiguration(protectedValue, configuration, false);
     }
 
     // -- Internal: FPE protect (FF1 / FF3) --
 
-    private String protectFf1(String value, Policy policy) { return protectFpe(value, policy, false); }
-    private String protectFf3(String value, Policy policy) { return protectFpe(value, policy, true); }
+    private String protectFf1(String value, Configuration configuration) { return protectFpe(value, configuration, false); }
+    private String protectFf3(String value, Configuration configuration) { return protectFpe(value, configuration, true); }
 
-    private String protectFpe(String value, Policy policy, boolean ff3) {
+    private String protectFpe(String value, Configuration configuration, boolean ff3) {
         try {
-            byte[] key = keyProvider.resolve(policy.keyRef());
-            String alphabet = policy.alphabet();
+            byte[] key = keyProvider.resolve(configuration.keyRef());
+            String alphabet = configuration.alphabet();
 
             // 1. Strip passthroughs, record positions
             int[] ptPositions = new int[value.length()];
@@ -191,9 +191,9 @@ public final class Cyphera {
                 withPt.insert(ptPositions[i], ptChars[i]);
             }
 
-            // 4. Prepend tag
-            if (policy.tagEnabled()) {
-                return policy.tag() + withPt.toString();
+            // 4. Prepend header
+            if (configuration.headerEnabled()) {
+                return configuration.header() + withPt.toString();
             }
             return withPt.toString();
         } catch (IllegalArgumentException e) {
@@ -205,9 +205,9 @@ public final class Cyphera {
 
     // -- Internal: Mask protect --
 
-    private String protectMask(String value, Policy policy) {
-        String pattern = policy.pattern();
-        if (pattern == null) throw new IllegalArgumentException("Mask policy requires 'pattern'");
+    private String protectMask(String value, Configuration configuration) {
+        String pattern = configuration.pattern();
+        if (pattern == null) throw new IllegalArgumentException("Mask configuration requires 'pattern'");
 
         int len = value.length();
         char mask = '*';
@@ -235,9 +235,9 @@ public final class Cyphera {
 
     // -- Internal: Hash protect --
 
-    private String protectHash(String value, Policy policy) {
+    private String protectHash(String value, Configuration configuration) {
         try {
-            String algo = policy.algorithm();
+            String algo = configuration.algorithm();
             String javaAlgo;
             switch (algo.toLowerCase()) {
                 case "sha256": case "sha-256": javaAlgo = "SHA-256"; break;
@@ -247,8 +247,8 @@ public final class Cyphera {
             }
 
             // If key_ref is set, do HMAC instead of plain hash
-            if (policy.keyRef() != null && !policy.keyRef().isEmpty()) {
-                byte[] key = keyProvider.resolve(policy.keyRef());
+            if (configuration.keyRef() != null && !configuration.keyRef().isEmpty()) {
+                byte[] key = keyProvider.resolve(configuration.keyRef());
                 javax.crypto.Mac mac = javax.crypto.Mac.getInstance("Hmac" + javaAlgo.replace("-", ""));
                 mac.init(new javax.crypto.spec.SecretKeySpec(key, mac.getAlgorithm()));
                 byte[] hash = mac.doFinal(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -265,45 +265,45 @@ public final class Cyphera {
         }
     }
 
-    // -- Internal: access with known policy --
+    // -- Internal: access with known configuration --
 
-    private String accessWithPolicy(String protectedValue, Policy policy, boolean hasTag) {
-        if (!policy.isReversible()) {
-            throw new IllegalArgumentException("Policy '" + policy.name() + "' uses engine '" + policy.engine() + "' which is not reversible");
+    private String accessWithConfiguration(String protectedValue, Configuration configuration, boolean hasHeader) {
+        if (!configuration.isReversible()) {
+            throw new IllegalArgumentException("Configuration '" + configuration.name() + "' uses engine '" + configuration.engine() + "' which is not reversible");
         }
 
-        String engine = policy.engine();
+        String engine = configuration.engine();
         switch (engine) {
-            case "ff1": return accessFf1(protectedValue, policy, hasTag);
-            case "ff3": return accessFf3(protectedValue, policy, hasTag);
-            case "aes_gcm": return accessAesGcm(protectedValue, policy, hasTag);
+            case "ff1": return accessFf1(protectedValue, configuration, hasHeader);
+            case "ff3": return accessFf3(protectedValue, configuration, hasHeader);
+            case "aes_gcm": return accessAesGcm(protectedValue, configuration, hasHeader);
             default: throw new IllegalArgumentException("Access not supported for engine: " + engine);
         }
     }
 
-    private String accessFf1(String protectedValue, Policy policy, boolean hasTag) {
-        return accessFpe(protectedValue, policy, hasTag, false);
+    private String accessFf1(String protectedValue, Configuration configuration, boolean hasHeader) {
+        return accessFpe(protectedValue, configuration, hasHeader, false);
     }
 
-    private String accessFf3(String protectedValue, Policy policy, boolean hasTag) {
-        return accessFpe(protectedValue, policy, hasTag, true);
+    private String accessFf3(String protectedValue, Configuration configuration, boolean hasHeader) {
+        return accessFpe(protectedValue, configuration, hasHeader, true);
     }
 
-    private String accessFpe(String protectedValue, Policy policy, boolean hasTag, boolean ff3) {
+    private String accessFpe(String protectedValue, Configuration configuration, boolean hasHeader, boolean ff3) {
         try {
-            byte[] key = keyProvider.resolve(policy.keyRef());
-            String alphabet = policy.alphabet();
+            byte[] key = keyProvider.resolve(configuration.keyRef());
+            String alphabet = configuration.alphabet();
 
-            // 1. Strip tag (first N chars of the full string)
-            String withoutTag = hasTag ? protectedValue.substring(policy.tagLength()) : protectedValue;
+            // 1. Strip header (first N chars of the full string)
+            String withoutHeader = hasHeader ? protectedValue.substring(configuration.headerLength()) : protectedValue;
 
             // 2. Strip passthroughs, record positions
-            int[] ptPositions = new int[withoutTag.length()];
-            char[] ptChars = new char[withoutTag.length()];
+            int[] ptPositions = new int[withoutHeader.length()];
+            char[] ptChars = new char[withoutHeader.length()];
             int ptCount = 0;
             StringBuilder encryptable = new StringBuilder();
-            for (int i = 0; i < withoutTag.length(); i++) {
-                char c = withoutTag.charAt(i);
+            for (int i = 0; i < withoutHeader.length(); i++) {
+                char c = withoutHeader.charAt(i);
                 if (alphabet.indexOf(c) >= 0) {
                     encryptable.append(c);
                 } else {
@@ -337,18 +337,18 @@ public final class Cyphera {
 
     // -- Internal: AES-GCM protect/access --
 
-    private String protectAesGcm(String value, Policy policy) {
-        byte[] key = keyProvider.resolve(policy.keyRef());
+    private String protectAesGcm(String value, Configuration configuration) {
+        byte[] key = keyProvider.resolve(configuration.keyRef());
         String encrypted = AesGcm.encrypt(value, key);
-        if (policy.tagEnabled()) {
-            return policy.tag() + encrypted;
+        if (configuration.headerEnabled()) {
+            return configuration.header() + encrypted;
         }
         return encrypted;
     }
 
-    private String accessAesGcm(String protectedValue, Policy policy, boolean hasTag) {
-        byte[] key = keyProvider.resolve(policy.keyRef());
-        String ciphertext = hasTag ? protectedValue.substring(policy.tagLength()) : protectedValue;
+    private String accessAesGcm(String protectedValue, Configuration configuration, boolean hasHeader) {
+        byte[] key = keyProvider.resolve(configuration.keyRef());
+        String ciphertext = hasHeader ? protectedValue.substring(configuration.headerLength()) : protectedValue;
         return AesGcm.decrypt(ciphertext, key);
     }
 
