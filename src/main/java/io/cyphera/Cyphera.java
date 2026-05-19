@@ -122,11 +122,12 @@ public final class Cyphera {
     }
 
     /**
-     * Access (decrypt/reverse) a protected value using the embedded header (DPH).
-     * Looks up the header from the first N chars, finds the configuration,
-     * strips the header, and decrypts.
+     * Access a protected value using the embedded header (DPH). Looks up
+     * the header from the first N chars, finds the configuration, strips
+     * the header, and decrypts. Use this for header_enabled=true
+     * configurations; for header_enabled=false use access(value, name).
      */
-    public String access(String protectedValue) {
+    public String accessByHeader(String protectedValue) {
         for (Map.Entry<String, Configuration> e : headerIndex.entrySet()) {
             String header = e.getKey();
             if (protectedValue.length() > header.length() && protectedValue.startsWith(header)) {
@@ -142,14 +143,14 @@ public final class Cyphera {
      * Access with explicit configuration name. The configuration must have
      * {@code header_enabled = false} -- the two-arg form treats the input as
      * raw headerless ciphertext. For headered configurations, use
-     * {@link #access(String)} so the header identifies the configuration.
+     * {@link #accessByHeader(String)} so the header identifies the configuration.
      */
     public String access(String protectedValue, String configurationName) {
         Configuration configuration = configurations.get(configurationName);
         if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
         if (configuration.headerEnabled()) {
             throw new IllegalArgumentException(
-                "configuration '" + configurationName + "' has header_enabled=true; use access(value) — the header identifies the configuration. The two-arg form is for header_enabled=false configurations only.");
+                "configuration '" + configurationName + "' has header_enabled=true; use accessByHeader(value) — the header identifies the configuration. The two-arg form is for header_enabled=false configurations only.");
         }
         return accessWithConfiguration(protectedValue, configuration);
     }

@@ -62,7 +62,7 @@ public class CypheraTest {
         assertNotEquals(ssn, protectedVal);
         assertTrue(protectedVal.length() > ssn.length()); // header adds chars
 
-        String accessed = c.access(protectedVal);
+        String accessed = c.accessByHeader(protectedVal);
         assertEquals(ssn, accessed);
     }
 
@@ -75,7 +75,7 @@ public class CypheraTest {
         // Dashes should be preserved somewhere in the output
         assertTrue(protectedVal.contains("-"));
 
-        String accessed = c.access(protectedVal);
+        String accessed = c.accessByHeader(protectedVal);
         assertEquals(ssn, accessed);
     }
 
@@ -113,13 +113,13 @@ public class CypheraTest {
     void accessNonReversibleThrows() {
         Cyphera c = Cyphera.fromMap(buildConfig());
         String masked = c.protect("123-45-6789", "ssn_mask");
-        assertThrows(IllegalArgumentException.class, () -> c.access(masked));
+        assertThrows(IllegalArgumentException.class, () -> c.accessByHeader(masked));
     }
 
     @Test
     void accessUnknownHeaderThrows() {
         Cyphera c = Cyphera.fromMap(buildConfig());
-        assertThrows(IllegalArgumentException.class, () -> c.access("zzz123456789"));
+        assertThrows(IllegalArgumentException.class, () -> c.accessByHeader("zzz123456789"));
     }
 
     @Test
@@ -183,7 +183,7 @@ public class CypheraTest {
         assertNotEquals(protectedVal, protectedVal2);
 
         // But both decrypt to the same input
-        assertEquals(input, c.access(protectedVal));
-        assertEquals(input, c.access(protectedVal2));
+        assertEquals(input, c.accessByHeader(protectedVal));
+        assertEquals(input, c.accessByHeader(protectedVal2));
     }
 }
