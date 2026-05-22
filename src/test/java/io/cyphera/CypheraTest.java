@@ -80,15 +80,16 @@ public class CypheraTest {
     }
 
     @Test
-    void protectAndDecryptUnHeaderedDigits() {
+    void protectAndAccessUnHeaderedDigits() {
         Cyphera c = Cyphera.fromMap(buildConfig());
         String ssn = "123456789";
 
         String protectedVal = c.protect(ssn, "ssn_digits");
         assertEquals(ssn.length(), protectedVal.length()); // no header, same length
 
-        // ssn_digits has header_enabled=false, so the low-level decrypt form applies.
-        String accessed = c.decrypt(protectedVal, "ssn_digits");
+        // ssn_digits has header_enabled=false, so the 2-arg access overload
+        // (escape hatch) is the way to round-trip without a header to key off.
+        String accessed = c.access(protectedVal, "ssn_digits");
         assertEquals(ssn, accessed);
     }
 
@@ -126,6 +127,15 @@ public class CypheraTest {
     }
 
     @Test
+    void accessTwoArgOnIrreversibleConfigurationThrows() {
+        Cyphera c = Cyphera.fromMap(buildConfig());
+        // The 2-arg escape hatch is permissive about header_enabled, but
+        // still must refuse mask/hash configurations -- those are one-way.
+        String masked = c.protect("123-45-6789", "ssn_mask");
+        assertThrows(IllegalArgumentException.class, () -> c.access(masked, "ssn_mask"));
+    }
+
+    @Test
     void headerCollisionThrows() {
         Map<String, Object> config = buildConfig();
         @SuppressWarnings("unchecked")
@@ -145,22 +155,6 @@ public class CypheraTest {
         configurations.put("configuration_b", c2);
 
         assertThrows(IllegalArgumentException.class, () -> Cyphera.fromMap(config));
-    }
-
-    @Test
-    void decryptOnHeaderedConfigurationThrows() {
-        Cyphera c = Cyphera.fromMap(buildConfig());
-        // "ssn" has header_enabled=true. The low-level decrypt(value, name) form
-        // is for headerless configurations only -- calling it here must error
-        // cleanly instead of silently returning garbage.
-        String protectedVal = c.protect("123-45-6789", "ssn");
-        IllegalArgumentException ex = assertThrows(
-            IllegalArgumentException.class,
-            () -> c.decrypt(protectedVal, "ssn"));
-        assertTrue(ex.getMessage().contains("header_enabled=true"),
-            "Expected stable error message about header_enabled=true, got: " + ex.getMessage());
-        assertTrue(ex.getMessage().contains("ssn"),
-            "Expected error to name the configuration, got: " + ex.getMessage());
     }
 
     @Test

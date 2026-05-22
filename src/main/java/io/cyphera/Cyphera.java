@@ -144,19 +144,19 @@ public final class Cyphera {
     }
 
     /**
-     * Decrypt a value using the named configuration. The configuration must
-     * have {@code header_enabled = false} -- this lower-level form treats the
-     * input as raw headerless ciphertext. For headered configurations, use the
-     * high-level {@link #access(String)} which strips the header itself.
+     * Escape-hatch access for unique situations where the protected value has
+     * no header (mainframe formats, fixed-width legacy systems, etc.). Caller
+     * names the configuration explicitly and the value is decrypted as raw
+     * headerless ciphertext.
+     *
+     * <p>Prefer the high-level {@link #access(String)} for normal use -- this
+     * overload is not the primary API and is intentionally not promoted in
+     * examples.
      */
-    public String decrypt(String ciphertext, String configurationName) {
+    public String access(String protectedValue, String configurationName) {
         Configuration configuration = configurations.get(configurationName);
         if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
-        if (configuration.headerEnabled()) {
-            throw new IllegalArgumentException(
-                "configuration '" + configurationName + "' has header_enabled=true; use access(value) — the header identifies the configuration. The two-arg decrypt(value, name) form is for header_enabled=false configurations only.");
-        }
-        return accessWithConfiguration(ciphertext, configuration);
+        return accessWithConfiguration(protectedValue, configuration);
     }
 
     // -- Internal: FPE protect (FF1 / FF3) --
