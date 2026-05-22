@@ -122,13 +122,17 @@ public final class Cyphera {
     }
 
     /**
-     * Access a protected value using the embedded header (DPH). Looks up
-     * the header from the first N chars, finds the configuration, strips
-     * the header, and decrypts. Use this for header_enabled=true
-     * configurations; for header_enabled=false use access(value, name).
+     * Reverse a protected value. The SDK uses the loaded configurations to
+     * figure out which one applies -- it checks the leading bytes of
+     * {@code protectedValue} against the registered headers (longest first
+     * to avoid prefix collisions), strips the matched header, and decrypts.
      */
-    public String accessByHeader(String protectedValue) {
-        for (Map.Entry<String, Configuration> e : headerIndex.entrySet()) {
+    public String access(String protectedValue) {
+        // Walk headers longest-first so a shorter prefix doesn't shadow a longer one.
+        java.util.List<Map.Entry<String, Configuration>> headers =
+            new java.util.ArrayList<>(headerIndex.entrySet());
+        headers.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
+        for (Map.Entry<String, Configuration> e : headers) {
             String header = e.getKey();
             if (protectedValue.length() > header.length() && protectedValue.startsWith(header)) {
                 Configuration configuration = e.getValue();
@@ -136,23 +140,23 @@ public final class Cyphera {
                 return accessWithConfiguration(stripped, configuration);
             }
         }
-        throw new IllegalArgumentException("No matching header found. Use access(value, configurationName) for headerless values.");
+        throw new IllegalArgumentException("No matching header found");
     }
 
     /**
-     * Access with explicit configuration name. The configuration must have
-     * {@code header_enabled = false} -- the two-arg form treats the input as
-     * raw headerless ciphertext. For headered configurations, use
-     * {@link #accessByHeader(String)} so the header identifies the configuration.
+     * Decrypt a value using the named configuration. The configuration must
+     * have {@code header_enabled = false} -- this lower-level form treats the
+     * input as raw headerless ciphertext. For headered configurations, use the
+     * high-level {@link #access(String)} which strips the header itself.
      */
-    public String access(String protectedValue, String configurationName) {
+    public String decrypt(String ciphertext, String configurationName) {
         Configuration configuration = configurations.get(configurationName);
         if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
         if (configuration.headerEnabled()) {
             throw new IllegalArgumentException(
-                "configuration '" + configurationName + "' has header_enabled=true; use accessByHeader(value) — the header identifies the configuration. The two-arg form is for header_enabled=false configurations only.");
+                "configuration '" + configurationName + "' has header_enabled=true; use access(value) — the header identifies the configuration. The two-arg decrypt(value, name) form is for header_enabled=false configurations only.");
         }
-        return accessWithConfiguration(protectedValue, configuration);
+        return accessWithConfiguration(ciphertext, configuration);
     }
 
     // -- Internal: FPE protect (FF1 / FF3) --
