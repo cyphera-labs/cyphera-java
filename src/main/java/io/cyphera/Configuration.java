@@ -64,6 +64,7 @@ public final class Configuration {
     }
 
     public boolean isReversible() {
-        return "ff1".equals(engine) || "ff3".equals(engine) || "aes_gcm".equals(engine);
+        return "ff1".equals(engine) || "ff3".equals(engine)
+            || "ff31".equals(engine) || "aes_gcm".equals(engine);
     }
 }

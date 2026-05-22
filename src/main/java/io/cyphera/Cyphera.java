@@ -3,6 +3,7 @@ package io.cyphera;
 import io.cyphera.engine.aesgcm.AesGcm;
 import io.cyphera.engine.ff1.FF1;
 import io.cyphera.engine.ff3.FF3;
+import io.cyphera.engine.ff3.FF31;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -112,8 +113,7 @@ public final class Cyphera {
         String engine = configuration.engine();
 
         switch (engine) {
-            case "ff1": return protectFf1(value, configuration);
-            case "ff3": return protectFf3(value, configuration);
+            case "ff1": case "ff3": case "ff31": return protectFpe(value, configuration, engine);
             case "mask": return protectMask(value, configuration);
             case "hash": return protectHash(value, configuration);
             case "aes_gcm": return protectAesGcm(value, configuration);
@@ -157,10 +157,17 @@ public final class Cyphera {
 
     // -- Internal: FPE protect (FF1 / FF3) --
 
-    private String protectFf1(String value, Configuration configuration) { return protectFpe(value, configuration, false); }
-    private String protectFf3(String value, Configuration configuration) { return protectFpe(value, configuration, true); }
+    private static boolean ff3Warned = false;
 
-    private String protectFpe(String value, Configuration configuration, boolean ff3) {
+    /** Emit the FF3 deprecation warning to stderr, once per process. */
+    private static synchronized void warnFf3Deprecated() {
+        if (!ff3Warned) {
+            ff3Warned = true;
+            System.err.println("WARNING: engine 'ff3' is deprecated and cryptographically weak — migrate to 'ff31' (FF3-1).");
+        }
+    }
+
+    private String protectFpe(String value, Configuration configuration, String engine) {
         try {
             byte[] key = keyProvider.resolve(configuration.keyRef());
             String alphabet = configuration.alphabet();
@@ -188,8 +195,11 @@ public final class Cyphera {
 
             // 3. Encrypt
             String encrypted;
-            if (ff3) {
+            if ("ff3".equals(engine)) {
+                warnFf3Deprecated();
                 encrypted = new FF3(key, new byte[8], alphabet).encrypt(encryptable.toString());
+            } else if ("ff31".equals(engine)) {
+                encrypted = new FF31(key, new byte[7], alphabet).encrypt(encryptable.toString());
             } else {
                 encrypted = new FF1(key, new byte[0], alphabet).encrypt(encryptable.toString());
             }
@@ -285,14 +295,13 @@ public final class Cyphera {
 
         String engine = configuration.engine();
         switch (engine) {
-            case "ff1": return accessFpe(protectedValue, configuration, false);
-            case "ff3": return accessFpe(protectedValue, configuration, true);
+            case "ff1": case "ff3": case "ff31": return accessFpe(protectedValue, configuration, engine);
             case "aes_gcm": return accessAesGcm(protectedValue, configuration);
             default: throw new IllegalArgumentException("Access not supported for engine: " + engine);
         }
     }
 
-    private String accessFpe(String protectedValue, Configuration configuration, boolean ff3) {
+    private String accessFpe(String protectedValue, Configuration configuration, String engine) {
         try {
             byte[] key = keyProvider.resolve(configuration.keyRef());
             String alphabet = configuration.alphabet();
@@ -315,8 +324,11 @@ public final class Cyphera {
 
             // 2. Decrypt
             String decrypted;
-            if (ff3) {
+            if ("ff3".equals(engine)) {
+                warnFf3Deprecated();
                 decrypted = new FF3(key, new byte[8], alphabet).decrypt(encryptable.toString());
+            } else if ("ff31".equals(engine)) {
+                decrypted = new FF31(key, new byte[7], alphabet).decrypt(encryptable.toString());
             } else {
                 decrypted = new FF1(key, new byte[0], alphabet).decrypt(encryptable.toString());
             }

@@ -6,8 +6,10 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 /**
- * FF3-1 Format-Preserving Encryption (NIST SP 800-38G Rev 1).
- * Ported from fpe-arena Java implementation.
+ * FF3 (NIST SP 800-38G) Format-Preserving Encryption.
+ *
+ * This is the original FF3, which is cryptographically weak and deprecated.
+ * Use {@link FF31} (FF3-1, NIST SP 800-38G Rev 1) instead.
  */
 public class FF3 {
     private final int radix;
@@ -16,8 +18,8 @@ public class FF3 {
     private final String alphabet;
 
     public FF3(byte[] key, byte[] tweak, String alphabet) throws Exception {
-        if (alphabet.length() < 2 || alphabet.length() > 62)
-            throw new IllegalArgumentException("Alphabet must be 2-62 chars");
+        if (alphabet.length() < 2 || alphabet.length() > 65536)
+            throw new IllegalArgumentException("Alphabet must be 2-65536 chars");
         if (key.length != 16 && key.length != 24 && key.length != 32)
             throw new IllegalArgumentException("Key must be 16, 24, or 32 bytes");
         if (tweak.length != 8)
