@@ -20,7 +20,7 @@ public class FF1 {
         if (alphabet.length() < 2)
             throw new IllegalArgumentException("Alphabet must have >= 2 chars");
         if (key.length != 16 && key.length != 24 && key.length != 32)
-            throw new IllegalArgumentException("Key must be 16, 24, or 32 bytes");
+            throw new IllegalArgumentException("invalid key length: " + key.length + " (expected 16, 24, or 32)");
 
         this.radix = alphabet.length();
         this.alphabet = alphabet;
@@ -34,10 +34,9 @@ public class FF1 {
             throw new IllegalArgumentException("Input must not be empty");
         // NIST SP 800-38G: radix^minlen >= 1,000,000
         double domainSize = Math.pow(radix, plaintext.length());
-        if (domainSize < 1_000_000)
-            throw new IllegalArgumentException("Input too short: " + plaintext.length()
-                + " chars with radix " + radix + " (domain size " + (long) domainSize
-                + " < 1,000,000 minimum)");
+        if (plaintext.length() < 2 || domainSize < 1_000_000)
+            throw new IllegalArgumentException(
+                "input too short (NIST minimum: length >= 2 and radix^length >= 1,000,000)");
 
         int[] digits = toDigits(plaintext);
         int[] result = ff1Encrypt(digits, tweak);
@@ -48,10 +47,9 @@ public class FF1 {
         if (ciphertext.isEmpty())
             throw new IllegalArgumentException("Input must not be empty");
         double domainSize = Math.pow(radix, ciphertext.length());
-        if (domainSize < 1_000_000)
-            throw new IllegalArgumentException("Input too short: " + ciphertext.length()
-                + " chars with radix " + radix + " (domain size " + (long) domainSize
-                + " < 1,000,000 minimum)");
+        if (ciphertext.length() < 2 || domainSize < 1_000_000)
+            throw new IllegalArgumentException(
+                "input too short (NIST minimum: length >= 2 and radix^length >= 1,000,000)");
         int[] digits = toDigits(ciphertext);
         int[] result = ff1Decrypt(digits, tweak);
         return fromDigits(result);
@@ -199,7 +197,8 @@ public class FF1 {
         int[] d = new int[s.length()];
         for (int i = 0; i < s.length(); i++) {
             int idx = alphabet.indexOf(s.charAt(i));
-            if (idx == -1) throw new IllegalArgumentException("Invalid char: " + s.charAt(i));
+            if (idx == -1) throw new IllegalArgumentException(
+                "invalid char '" + s.charAt(i) + "' at position " + i);
             d[i] = idx;
         }
         return d;

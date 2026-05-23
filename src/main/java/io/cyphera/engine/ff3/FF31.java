@@ -14,7 +14,7 @@ public class FF31 {
     /** Create an FF3-1 cipher. {@code tweak} MUST be exactly 7 bytes (56 bits). */
     public FF31(byte[] key, byte[] tweak, String alphabet) throws Exception {
         if (tweak.length != 7)
-            throw new IllegalArgumentException("FF3-1 tweak must be exactly 7 bytes (56 bits)");
+            throw new IllegalArgumentException("invalid tweak length: " + tweak.length + " (expected 7)");
         this.inner = new FF3(key, expandTweak(tweak), alphabet);
     }
 

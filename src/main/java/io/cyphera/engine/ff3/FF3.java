@@ -21,9 +21,9 @@ public class FF3 {
         if (alphabet.length() < 2 || alphabet.length() > 65536)
             throw new IllegalArgumentException("Alphabet must be 2-65536 chars");
         if (key.length != 16 && key.length != 24 && key.length != 32)
-            throw new IllegalArgumentException("Key must be 16, 24, or 32 bytes");
+            throw new IllegalArgumentException("invalid key length: " + key.length + " (expected 16, 24, or 32)");
         if (tweak.length != 8)
-            throw new IllegalArgumentException("Tweak must be exactly 8 bytes");
+            throw new IllegalArgumentException("invalid tweak length: " + tweak.length + " (expected 8)");
 
         this.radix = alphabet.length();
         this.alphabet = alphabet;
@@ -36,11 +36,9 @@ public class FF3 {
     // NIST SP 800-38G: length >= 2, radix^length >= 1,000,000, and
     // length <= 2*floor(log_radix(2^96)).
     private void checkLength(int n) {
-        if (n < 2)
-            throw new IllegalArgumentException("FF3 requires at least 2 characters");
-        if (Math.pow(radix, n) < 1_000_000)
-            throw new IllegalArgumentException("Input too short: " + n
-                + " chars with radix " + radix + " (domain size < 1,000,000 minimum)");
+        if (n < 2 || Math.pow(radix, n) < 1_000_000)
+            throw new IllegalArgumentException(
+                "input too short (NIST minimum: length >= 2 and radix^length >= 1,000,000)");
         int maxLen = 2 * (int) Math.floor(Math.log(Math.pow(2, 96)) / Math.log(radix));
         if (n > maxLen)
             throw new IllegalArgumentException("Input too long: maximum is " + maxLen
@@ -140,7 +138,8 @@ public class FF3 {
         int[] d = new int[s.length()];
         for (int i = 0; i < s.length(); i++) {
             int idx = alphabet.indexOf(s.charAt(i));
-            if (idx == -1) throw new IllegalArgumentException("Invalid char: " + s.charAt(i));
+            if (idx == -1) throw new IllegalArgumentException(
+                "invalid char '" + s.charAt(i) + "' at position " + i);
             d[i] = idx;
         }
         return d;

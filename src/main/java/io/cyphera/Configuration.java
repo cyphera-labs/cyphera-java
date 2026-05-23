@@ -57,7 +57,7 @@ public final class Configuration {
 
         // Header must be provided in configuration if header_enabled is true
         if (headerEnabled && (header == null || header.isEmpty())) {
-            throw new IllegalArgumentException("Configuration '" + name + "' has header_enabled=true but no header specified. The header must be set in the configuration.");
+            throw new IllegalArgumentException("configuration error: header must be specified");
         }
 
         return new Configuration(name, engine, alphabet, keyRef, header, headerEnabled, headerLength, pattern, algorithm);

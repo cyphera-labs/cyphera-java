@@ -117,13 +117,17 @@ public class CypheraTest {
         String masked = c.protect("123-45-6789", "ssn_mask");
         // ssn_mask has header_enabled=false, so access() will fail to find a
         // matching header rather than dispatching into the mask engine.
-        assertThrows(IllegalArgumentException.class, () -> c.access(masked));
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class, () -> c.access(masked));
+        assertEquals("no matching header found", ex.getMessage());
     }
 
     @Test
     void accessUnknownHeaderThrows() {
         Cyphera c = Cyphera.fromMap(buildConfig());
-        assertThrows(IllegalArgumentException.class, () -> c.access("zzz123456789"));
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class, () -> c.access("zzz123456789"));
+        assertEquals("no matching header found", ex.getMessage());
     }
 
     @Test
@@ -132,7 +136,9 @@ public class CypheraTest {
         // The 2-arg escape hatch is permissive about header_enabled, but
         // still must refuse mask/hash configurations -- those are one-way.
         String masked = c.protect("123-45-6789", "ssn_mask");
-        assertThrows(IllegalArgumentException.class, () -> c.access(masked, "ssn_mask"));
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class, () -> c.access(masked, "ssn_mask"));
+        assertEquals("cannot reverse 'ssn_mask' — mask is irreversible", ex.getMessage());
     }
 
     @Test

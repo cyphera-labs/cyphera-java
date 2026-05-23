@@ -37,7 +37,7 @@ public final class MemoryKeyProvider implements KeyProvider {
     @Override
     public byte[] resolve(String keyRef) {
         byte[] key = keys.get(keyRef);
-        if (key == null) throw new IllegalArgumentException("Unknown key: " + keyRef);
+        if (key == null) throw new IllegalArgumentException("key error: unknown key '" + keyRef + "'");
         return key;
     }
 

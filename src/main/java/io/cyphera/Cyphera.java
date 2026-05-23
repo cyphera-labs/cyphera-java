@@ -20,9 +20,7 @@ public final class Cyphera {
             this.configurations.put(e.getKey(), cfg);
             if (cfg.headerEnabled() && cfg.header() != null) {
                 if (this.headerIndex.containsKey(cfg.header())) {
-                    throw new IllegalArgumentException(
-                        "Header collision: '" + cfg.header() + "' used by both '" +
-                        this.headerIndex.get(cfg.header()).name() + "' and '" + cfg.name() + "'");
+                    throw new IllegalArgumentException("configuration error: header collision");
                 }
                 this.headerIndex.put(cfg.header(), cfg);
             }
@@ -108,7 +106,7 @@ public final class Cyphera {
      */
     public String protect(String value, String configurationName) {
         Configuration configuration = configurations.get(configurationName);
-        if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
+        if (configuration == null) throw new IllegalArgumentException("configuration not found: " + configurationName);
 
         String engine = configuration.engine();
 
@@ -117,7 +115,7 @@ public final class Cyphera {
             case "mask": return protectMask(value, configuration);
             case "hash": return protectHash(value, configuration);
             case "aes_gcm": return protectAesGcm(value, configuration);
-            default: throw new IllegalArgumentException("Unknown engine: " + engine);
+            default: throw new IllegalArgumentException("unknown engine: " + engine);
         }
     }
 
@@ -140,7 +138,7 @@ public final class Cyphera {
                 return accessWithConfiguration(stripped, configuration);
             }
         }
-        throw new IllegalArgumentException("No matching header found");
+        throw new IllegalArgumentException("no matching header found");
     }
 
     /**
@@ -155,7 +153,7 @@ public final class Cyphera {
      */
     public String access(String protectedValue, String configurationName) {
         Configuration configuration = configurations.get(configurationName);
-        if (configuration == null) throw new IllegalArgumentException("Unknown configuration: " + configurationName);
+        if (configuration == null) throw new IllegalArgumentException("configuration not found: " + configurationName);
         return accessWithConfiguration(protectedValue, configuration);
     }
 
@@ -194,7 +192,7 @@ public final class Cyphera {
 
             // 2. Check for zero encryptable chars
             if (encryptable.length() == 0) {
-                throw new IllegalArgumentException("No encryptable characters in input");
+                throw new IllegalArgumentException("no encryptable characters in input");
             }
 
             // 3. Encrypt
@@ -230,7 +228,7 @@ public final class Cyphera {
 
     private String protectMask(String value, Configuration configuration) {
         String pattern = configuration.pattern();
-        if (pattern == null) throw new IllegalArgumentException("Mask configuration requires 'pattern'");
+        if (pattern == null) throw new IllegalArgumentException("mask pattern required");
 
         int len = value.length();
         char mask = '*';
@@ -294,14 +292,16 @@ public final class Cyphera {
 
     private String accessWithConfiguration(String protectedValue, Configuration configuration) {
         if (!configuration.isReversible()) {
-            throw new IllegalArgumentException("Configuration '" + configuration.name() + "' uses engine '" + configuration.engine() + "' which is not reversible");
+            // Engine here is always "mask" or "hash" (the only non-reversible engines).
+            throw new IllegalArgumentException(
+                "cannot reverse '" + configuration.name() + "' — " + configuration.engine() + " is irreversible");
         }
 
         String engine = configuration.engine();
         switch (engine) {
             case "ff1": case "ff3": case "ff31": return accessFpe(protectedValue, configuration, engine);
             case "aes_gcm": return accessAesGcm(protectedValue, configuration);
-            default: throw new IllegalArgumentException("Access not supported for engine: " + engine);
+            default: throw new IllegalArgumentException("unknown engine: " + engine);
         }
     }
 
