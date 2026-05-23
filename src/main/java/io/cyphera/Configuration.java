@@ -10,6 +10,7 @@ public final class Configuration {
     private final String header;          // 3-4 char Data Protection Header for this configuration
     private final boolean headerEnabled;  // default true
     private final int headerLength;       // default 3
+    private final byte[] tweak;           // optional FPE tweak (FF3 = 8 bytes, FF3-1 = 7 bytes)
 
     // For mask engine
     private final String pattern;      // e.g. "***-**-{last4}"
@@ -19,7 +20,7 @@ public final class Configuration {
 
     private Configuration(String name, String engine, String alphabet, String keyRef,
                           String header, boolean headerEnabled, int headerLength,
-                          String pattern, String algorithm) {
+                          byte[] tweak, String pattern, String algorithm) {
         this.name = name;
         this.engine = engine;
         this.alphabet = alphabet;
@@ -27,6 +28,7 @@ public final class Configuration {
         this.header = header;
         this.headerEnabled = headerEnabled;
         this.headerLength = headerLength;
+        this.tweak = tweak;
         this.pattern = pattern;
         this.algorithm = algorithm;
     }
@@ -38,6 +40,7 @@ public final class Configuration {
     public String header() { return header; }
     public boolean headerEnabled() { return headerEnabled; }
     public int headerLength() { return headerLength; }
+    public byte[] tweak() { return tweak; }
     public String pattern() { return pattern; }
     public String algorithm() { return algorithm; }
 
@@ -55,12 +58,31 @@ public final class Configuration {
         String pattern = (String) map.get("pattern");
         String algorithm = (String) map.getOrDefault("algorithm", "sha256");
 
+        byte[] tweak = null;
+        Object tweakObj = map.get("tweak");
+        if (tweakObj instanceof String && !((String) tweakObj).isEmpty()) {
+            tweak = hexDecode((String) tweakObj);
+        }
+
         // Header must be provided in configuration if header_enabled is true
         if (headerEnabled && (header == null || header.isEmpty())) {
             throw new IllegalArgumentException("configuration error: header must be specified");
         }
 
-        return new Configuration(name, engine, alphabet, keyRef, header, headerEnabled, headerLength, pattern, algorithm);
+        return new Configuration(name, engine, alphabet, keyRef, header, headerEnabled, headerLength, tweak, pattern, algorithm);
+    }
+
+    private static byte[] hexDecode(String hex) {
+        int len = hex.length();
+        if ((len & 1) != 0) throw new IllegalArgumentException("invalid hex tweak: odd length");
+        byte[] out = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            int hi = Character.digit(hex.charAt(i), 16);
+            int lo = Character.digit(hex.charAt(i + 1), 16);
+            if (hi < 0 || lo < 0) throw new IllegalArgumentException("invalid hex tweak");
+            out[i / 2] = (byte) ((hi << 4) | lo);
+        }
+        return out;
     }
 
     public boolean isReversible() {

@@ -161,6 +161,21 @@ public final class Cyphera {
 
     private static boolean ff3Warned = false;
 
+    /**
+     * Require a tweak of exact length for FF3/FF3-1. Missing or wrong-length
+     * tweaks are a hard error — no silent zero-fill. FF1 callers handle their
+     * own (optional, arbitrary-length) tweak directly.
+     */
+    private static byte[] requireTweak(Configuration configuration, int expectedLen, String label) {
+        byte[] tweak = configuration.tweak();
+        if (tweak == null || tweak.length != expectedLen) {
+            throw new IllegalArgumentException(
+                "configuration '" + configuration.name() + "' is missing required 'tweak' ("
+                + label + " needs " + expectedLen + " bytes)");
+        }
+        return tweak;
+    }
+
     /** Emit the FF3 deprecation warning to stderr, once per process. */
     private static synchronized void warnFf3Deprecated() {
         if (!ff3Warned) {
@@ -199,11 +214,13 @@ public final class Cyphera {
             String encrypted;
             if ("ff3".equals(engine)) {
                 warnFf3Deprecated();
-                encrypted = new FF3(key, new byte[8], alphabet).encrypt(encryptable.toString());
+                encrypted = new FF3(key, requireTweak(configuration, 8, "FF3"), alphabet).encrypt(encryptable.toString());
             } else if ("ff31".equals(engine)) {
-                encrypted = new FF31(key, new byte[7], alphabet).encrypt(encryptable.toString());
+                encrypted = new FF31(key, requireTweak(configuration, 7, "FF3-1"), alphabet).encrypt(encryptable.toString());
             } else {
-                encrypted = new FF1(key, new byte[0], alphabet).encrypt(encryptable.toString());
+                byte[] ff1Tweak = configuration.tweak();
+                if (ff1Tweak == null) ff1Tweak = new byte[0];
+                encrypted = new FF1(key, ff1Tweak, alphabet).encrypt(encryptable.toString());
             }
 
             // 3. Reinsert passthroughs at original positions
@@ -330,11 +347,13 @@ public final class Cyphera {
             String decrypted;
             if ("ff3".equals(engine)) {
                 warnFf3Deprecated();
-                decrypted = new FF3(key, new byte[8], alphabet).decrypt(encryptable.toString());
+                decrypted = new FF3(key, requireTweak(configuration, 8, "FF3"), alphabet).decrypt(encryptable.toString());
             } else if ("ff31".equals(engine)) {
-                decrypted = new FF31(key, new byte[7], alphabet).decrypt(encryptable.toString());
+                decrypted = new FF31(key, requireTweak(configuration, 7, "FF3-1"), alphabet).decrypt(encryptable.toString());
             } else {
-                decrypted = new FF1(key, new byte[0], alphabet).decrypt(encryptable.toString());
+                byte[] ff1Tweak = configuration.tweak();
+                if (ff1Tweak == null) ff1Tweak = new byte[0];
+                decrypted = new FF1(key, ff1Tweak, alphabet).decrypt(encryptable.toString());
             }
 
             // 3. Reinsert passthroughs at original positions

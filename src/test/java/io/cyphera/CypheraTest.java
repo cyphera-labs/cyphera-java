@@ -164,6 +164,79 @@ public class CypheraTest {
     }
 
     @Test
+    void ff3MissingTweakThrows() {
+        Map<String, Object> config = buildConfig();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> configurations = (Map<String, Object>) config.get("configurations");
+
+        Map<String, Object> ff3Cfg = new HashMap<>();
+        ff3Cfg.put("engine", "ff3");
+        ff3Cfg.put("alphabet", "digits");
+        ff3Cfg.put("key_ref", "demo-key");
+        ff3Cfg.put("header", "T03");
+        // no "tweak" — used to silently zero-fill; now must throw
+        configurations.put("ff3_no_tweak", ff3Cfg);
+
+        Cyphera c = Cyphera.fromMap(config);
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class, () -> c.protect("123456789", "ff3_no_tweak"));
+        assertEquals(
+            "configuration 'ff3_no_tweak' is missing required 'tweak' (FF3 needs 8 bytes)",
+            ex.getMessage());
+    }
+
+    @Test
+    void ff31MissingTweakThrows() {
+        Map<String, Object> config = buildConfig();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> configurations = (Map<String, Object>) config.get("configurations");
+
+        Map<String, Object> ff31Cfg = new HashMap<>();
+        ff31Cfg.put("engine", "ff31");
+        ff31Cfg.put("alphabet", "digits");
+        ff31Cfg.put("key_ref", "demo-key");
+        ff31Cfg.put("header", "T04");
+        configurations.put("ff31_no_tweak", ff31Cfg);
+
+        Cyphera c = Cyphera.fromMap(config);
+        IllegalArgumentException ex = assertThrows(
+            IllegalArgumentException.class, () -> c.protect("123456789", "ff31_no_tweak"));
+        assertEquals(
+            "configuration 'ff31_no_tweak' is missing required 'tweak' (FF3-1 needs 7 bytes)",
+            ex.getMessage());
+    }
+
+    @Test
+    void ff3WithExplicitTweakRoundTrips() {
+        Map<String, Object> config = buildConfig();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> configurations = (Map<String, Object>) config.get("configurations");
+
+        Map<String, Object> ff3Cfg = new HashMap<>();
+        ff3Cfg.put("engine", "ff3");
+        ff3Cfg.put("alphabet", "digits");
+        ff3Cfg.put("key_ref", "demo-key");
+        ff3Cfg.put("header", "T05");
+        ff3Cfg.put("tweak", "D8E7920AFA330A73");
+        configurations.put("ff3_ok", ff3Cfg);
+
+        Cyphera c = Cyphera.fromMap(config);
+        String input = "123456789";
+        String protectedVal = c.protect(input, "ff3_ok");
+        assertNotEquals(input, protectedVal);
+        assertEquals(input, c.access(protectedVal));
+    }
+
+    @Test
+    void ff1MissingTweakStillWorks() {
+        // FF1 tweak stays optional per NIST SP 800-38G.
+        Cyphera c = Cyphera.fromMap(buildConfig());
+        String input = "123456789";
+        String protectedVal = c.protect(input, "ssn"); // ssn is ff1 with no tweak
+        assertEquals(input, c.access(protectedVal));
+    }
+
+    @Test
     void protectAndAccessAesGcm() {
         Map<String, Object> config = buildConfig();
         @SuppressWarnings("unchecked")
