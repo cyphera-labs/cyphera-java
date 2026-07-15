@@ -1,14 +1,30 @@
+# Grouped: minor/patch bundle into one monthly PR per ecosystem; majors come individually for review.
 version: 2
 updates:
-  - package-ecosystem: "maven"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 5
-    ignore:
-      - dependency-name: "org.junit.jupiter:junit-jupiter"
-        versions: [">=6.0.0"]
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "monthly"
+- package-ecosystem: maven
+  directory: /
+  schedule:
+    interval: monthly
+  open-pull-requests-limit: 5
+  ignore:
+  - dependency-name: org.junit.jupiter:junit-jupiter
+    versions:
+    - '>=6.0.0'
+  groups:
+    maven-minor-patch:
+      patterns:
+      - '*'
+      update-types:
+      - minor
+      - patch
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: monthly
+  groups:
+    github-actions-minor-patch:
+      patterns:
+      - '*'
+      update-types:
+      - minor
+      - patch
