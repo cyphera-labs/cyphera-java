@@ -141,6 +141,26 @@
                             <autoPublish>true</autoPublish>
                         </configuration>
                     </plugin>
+
+                    <!-- Software bill of materials (CycloneDX), generated on every package -->
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>2.9.3</version>
+                        <executions>
+                            <execution>
+                                <id>build-sbom</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>makeBom</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <outputFormat>json</outputFormat>
+                            <outputName>bom</outputName>
+                        </configuration>
+                    </plugin>
                 </plugins>
             </build>
         </profile>
